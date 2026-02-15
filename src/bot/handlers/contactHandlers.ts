@@ -4,9 +4,7 @@ import { profilesRepo } from "../../db/repositories/profilesRepo";
 import { getSession } from "../sessionHelpers";
 
 /**
- * Пытаемся получить @username и имя через Telegram API.
- * Может падать, если бот не имеет “чата” с пользователем (например, он не запускал бота).
- * Поэтому всегда делаем fallback.
+
  */
 async function getUserIdentity(ctx: BotContext, userId: number) {
   let username: string | null = null;
@@ -15,6 +13,7 @@ async function getUserIdentity(ctx: BotContext, userId: number) {
   try {
     const chat: any = await ctx.telegram.getChat(userId);
     if (chat?.username) username = `@${chat.username}`;
+
     const fn = chat?.first_name ?? "";
     const ln = chat?.last_name ?? "";
     const name = `${fn} ${ln}`.trim();
@@ -28,22 +27,32 @@ async function getUserIdentity(ctx: BotContext, userId: number) {
 
   return {
     id: userId,
-    username, // @xxx или null
-    fullName, // "First Last" или null
-    displayName, // имя из анкеты или null
-    label:
-      username ??
-      displayName ??
-      fullName ??
-      `id:${userId}`,
+    username,
+    fullName,
+    displayName,
+    label: username ?? displayName ?? fullName ?? `id:${userId}`,
   };
 }
 
 function userLink(userId: number) {
-  // Открытие профиля/чата в клиенте Telegram (в личке админа/юзера)
   return `tg://user?id=${userId}`;
 }
 
+/**
+ * 
+ */
+async function safeDm(ctx: BotContext, userId: number, text: string, extra?: any) {
+  try {
+    await ctx.telegram.sendMessage(userId, text, extra);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+
+ */
 export async function contactRequestStart(ctx: BotContext, targetUserId: number) {
   const fromUserId = ctx.from?.id;
   if (!fromUserId) return;
@@ -52,18 +61,25 @@ export async function contactRequestStart(ctx: BotContext, targetUserId: number)
   const toProfile = profilesRepo.get(targetUserId);
 
   if (fromUserId === targetUserId) {
-    await ctx.answerCbQuery("Нельзя отправить запрос самому себе");
+    await ctx.answerCbQuery("Нельзя отправить запрос самому себе", { show_alert: true });
     return;
   }
 
   if (!fromProfile || fromProfile.state !== "approved") {
-    await ctx.answerCbQuery("Сначала нужно, чтобы твоя анкета была одобрена");
-    await ctx.reply("Чтобы отправлять запросы, нужна одобренная анкета. /start → Заполнить анкету");
+    await ctx.answerCbQuery("Нужна одобренная анкета", { show_alert: true });
+
+    // Попробуем написать в личку инструкцию (без спама в группе)
+    await safeDm(
+      ctx,
+      fromUserId,
+      "Чтобы отправлять запросы контакта, нужна одобренная анкета.\n" +
+        "Зайди в бота и заполни анкету: /start"
+    );
     return;
   }
 
   if (!toProfile || toProfile.state !== "approved") {
-    await ctx.answerCbQuery("Анкета сейчас недоступна");
+    await ctx.answerCbQuery("Анкета сейчас недоступна", { show_alert: true });
     return;
   }
 
@@ -73,22 +89,74 @@ export async function contactRequestStart(ctx: BotContext, targetUserId: number)
   const LIMIT = 10;
 
   if (sent >= LIMIT) {
-    await ctx.answerCbQuery("Лимит запросов на сегодня исчерпан");
-    await ctx.reply(`Лимит: ${LIMIT} запросов за 24 часа. Попробуй позже.`);
+    await ctx.answerCbQuery("Лимит запросов на сегодня исчерпан", { show_alert: true });
+    await safeDm(ctx, fromUserId, `Лимит: ${LIMIT} запросов за 24 часа. Попробуй позже.`);
     return;
   }
 
-  await ctx.answerCbQuery();
+  // ✅ создаём запрос сразу (без шага “введи сообщение”)
+  const defaultMessage = "Привет! Хочу познакомиться 🙂";
+  const requestId = contactRequestsRepo.create(fromUserId, targetUserId, defaultMessage);
 
-  // Запоминаем в сессии, что ждём текст
-  getSession(ctx).contactDraft = { toUserId: targetUserId };
+  // Кто отправил (для получателя)
+  const fromIdentity = await getUserIdentity(ctx, fromUserId);
+  const metaParts: string[] = [];
+  if ((fromProfile as any)?.city_main) metaParts.push(`Город: ${(fromProfile as any).city_main}`);
+  if ((fromProfile as any)?.age) metaParts.push(`Возраст: ${(fromProfile as any).age}`);
+  const metaLine = metaParts.length ? `\n${metaParts.join(" • ")}` : "";
 
-  await ctx.reply(
-    "Напиши короткое сообщение для запроса (до 300 символов).\n" +
-      "Отправь обычным текстом одним сообщением.\n\n" +
-      "Отмена: /cancel"
+  // 1) Пишем получателю в ЛИЧКУ
+  const deliveredToTarget = await safeDm(
+    ctx,
+    targetUserId,
+    "Новый запрос на контакт 💌\n\n" +
+      `От: ${fromIdentity.label}${metaLine}\n\n` +
+      `Сообщение:\n${defaultMessage}\n\n` +
+      "Принять?",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ Принять", callback_data: `contact:accept:${requestId}` },
+            { text: "❌ Отклонить", callback_data: `contact:decline:${requestId}` },
+          ],
+        ],
+      },
+    }
   );
+
+  // 2) Пишем отправителю в ЛИЧКУ (без сообщений в группе)
+  if (deliveredToTarget) {
+    const deliveredToSender = await safeDm(
+      ctx,
+      fromUserId,
+      "Запрос отправлен ✅ Ждём ответ."
+    );
+
+    // Если отправитель не запускал бота/заблокировал — покажем alert
+    if (!deliveredToSender) {
+      await ctx.answerCbQuery(
+        "Запрос отправлен. Чтобы получать ответы — открой бота в личке и нажми /start",
+        { show_alert: true }
+      );
+    } else {
+      await ctx.answerCbQuery("Запрос отправлен ✅");
+    }
+  } else {
+    // Получатель не доступен в личке (не запускал бота/заблокировал)
+    await ctx.answerCbQuery(
+      "Не удалось отправить запрос: пользователь не доступен в личке бота",
+      { show_alert: true }
+    );
+    await safeDm(
+      ctx,
+      fromUserId,
+      "Не удалось отправить запрос: пользователь не доступен в личке бота.\n" +
+        "Так бывает, если он не запускал бота или заблокировал его."
+    );
+  }
 }
+
 
 export async function contactDraftText(ctx: BotContext) {
   const fromUserId = ctx.from?.id;
@@ -112,10 +180,8 @@ export async function contactDraftText(ctx: BotContext) {
     return;
   }
 
-  // Создаём запрос в БД
   const requestId = contactRequestsRepo.create(fromUserId, draft.toUserId, message);
 
-  // Кто отправил (для получателя)
   const fromIdentity = await getUserIdentity(ctx, fromUserId);
   const fromProfile = profilesRepo.get(fromUserId) as any;
 
@@ -124,7 +190,6 @@ export async function contactDraftText(ctx: BotContext) {
   if (fromProfile?.age) metaParts.push(`Возраст: ${fromProfile.age}`);
   const metaLine = metaParts.length ? `\n${metaParts.join(" • ")}` : "";
 
-  // Отправляем владельцу анкеты запрос с кнопками (В ЛИЧКУ, не в группу)
   await ctx.telegram.sendMessage(
     draft.toUserId,
     "Новый запрос на контакт 💌\n\n" +
@@ -143,7 +208,7 @@ export async function contactDraftText(ctx: BotContext) {
     }
   );
 
- getSession(ctx).contactDraft = undefined;
+  getSession(ctx).contactDraft = undefined;
   await ctx.reply("Запрос отправлен ✅ Ждём ответ.");
 }
 
@@ -153,32 +218,29 @@ export async function contactAccept(ctx: BotContext, requestId: number) {
 
   const req = contactRequestsRepo.get(requestId);
   if (!req) {
-    await ctx.answerCbQuery("Запрос не найден");
+    await ctx.answerCbQuery("Запрос не найден", { show_alert: true });
     return;
   }
 
-  // Принимать может только получатель
   if (req.to_user_id !== me) {
-    await ctx.answerCbQuery("Это не ваш запрос");
+    await ctx.answerCbQuery("Это не ваш запрос", { show_alert: true });
     return;
   }
 
   if (req.status !== "pending") {
-    await ctx.answerCbQuery("Запрос уже обработан");
+    await ctx.answerCbQuery("Запрос уже обработан", { show_alert: true });
     return;
   }
 
   contactRequestsRepo.setStatus(requestId, "accepted");
   await ctx.answerCbQuery("Принято");
 
-  // Каналы связи: @username (если есть) + кнопка на tg://user?id=...
   const fromIdentity = await getUserIdentity(ctx, req.from_user_id);
   const toIdentity = await getUserIdentity(ctx, req.to_user_id);
 
   const toLink = userLink(req.to_user_id);
   const fromLink = userLink(req.from_user_id);
 
-  // Отправителю (кто просил контакт)
   await ctx.telegram.sendMessage(
     req.from_user_id,
     "Запрос принят ✅\n\n" +
@@ -186,14 +248,9 @@ export async function contactAccept(ctx: BotContext, requestId: number) {
       (toIdentity.username ? `Ник: ${toIdentity.username}\n` : "") +
       (toIdentity.fullName ? `Имя: ${toIdentity.fullName}\n` : "") +
       (!toIdentity.username ? "Ника нет. Открой профиль кнопкой ниже.\n" : ""),
-    {
-      reply_markup: {
-        inline_keyboard: [[{ text: "Открыть профиль", url: toLink }]],
-      },
-    }
+    { reply_markup: { inline_keyboard: [[{ text: "Открыть профиль", url: toLink }]] } }
   );
 
-  // Получателю (кто принял)
   await ctx.telegram.sendMessage(
     req.to_user_id,
     "Вы приняли запрос ✅\n\n" +
@@ -201,11 +258,7 @@ export async function contactAccept(ctx: BotContext, requestId: number) {
       (fromIdentity.username ? `Ник: ${fromIdentity.username}\n` : "") +
       (fromIdentity.fullName ? `Имя: ${fromIdentity.fullName}\n` : "") +
       (!fromIdentity.username ? "Ника нет. Открой профиль кнопкой ниже.\n" : ""),
-    {
-      reply_markup: {
-        inline_keyboard: [[{ text: "Открыть профиль", url: fromLink }]],
-      },
-    }
+    { reply_markup: { inline_keyboard: [[{ text: "Открыть профиль", url: fromLink }]] } }
   );
 
   await safeEditCallbackMessage(ctx, "✅ Запрос принят. Контакт отправлен обоим.");
@@ -217,17 +270,17 @@ export async function contactDecline(ctx: BotContext, requestId: number) {
 
   const req = contactRequestsRepo.get(requestId);
   if (!req) {
-    await ctx.answerCbQuery("Запрос не найден");
+    await ctx.answerCbQuery("Запрос не найден", { show_alert: true });
     return;
   }
 
   if (req.to_user_id !== me) {
-    await ctx.answerCbQuery("Это не ваш запрос");
+    await ctx.answerCbQuery("Это не ваш запрос", { show_alert: true });
     return;
   }
 
   if (req.status !== "pending") {
-    await ctx.answerCbQuery("Запрос уже обработан");
+    await ctx.answerCbQuery("Запрос уже обработан", { show_alert: true });
     return;
   }
 
@@ -235,7 +288,6 @@ export async function contactDecline(ctx: BotContext, requestId: number) {
   await ctx.answerCbQuery("Отклонено");
 
   await ctx.telegram.sendMessage(req.from_user_id, "Запрос отклонён ❌");
-
   await safeEditCallbackMessage(ctx, "❌ Запрос отклонён.");
 }
 

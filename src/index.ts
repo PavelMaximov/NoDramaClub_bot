@@ -313,7 +313,7 @@ async function main() {
   bot.on("text", async (ctx) => {
     
    await handleAdminEditText(ctx);
-   await feedbackText(ctx)
+   await feedbackText(ctx);
     await contactDraftText(ctx);
     await reportDraftText(ctx);
   });

@@ -1,6 +1,27 @@
 import type { Telegram } from "telegraf";
 import { profilesRepo } from "../db/repositories/profilesRepo";
 import { photosRepo } from "../db/repositories/photosRepo";
+import { config } from "../config";
+
+
+async function kickFromGroup(tg: Telegram, userId: number) {
+  if (!config.groupChatId) return;
+
+  // Не кикаем админов
+  if (config.adminIds.includes(userId)) return;
+
+  try {
+ 
+    await tg.banChatMember(config.groupChatId, userId);
+
+
+    await tg.unbanChatMember(config.groupChatId, userId);
+
+    console.log(`User ${userId} kicked from group`);
+  } catch (error) {
+    console.error("kickFromGroup error:", error);
+  }
+}
 
 export const profileDeleteService = {
   async deleteProfileAndPosts(tg: Telegram, userId: number) {
@@ -41,6 +62,9 @@ export const profileDeleteService = {
       posted_message_id: null,
       posted_media_message_ids: null,
     });
+
+    await kickFromGroup(tg, userId);
+    
   },
 
   async deletePublishedPostsOnly(tg: Telegram, userId: number) {
