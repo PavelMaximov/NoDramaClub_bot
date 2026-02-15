@@ -1,6 +1,7 @@
 import type { BotContext } from "../context";
 import { contactRequestsRepo } from "../../db/repositories/contactRequestsRepo";
 import { profilesRepo } from "../../db/repositories/profilesRepo";
+import { getSession } from "../sessionHelpers";
 
 /**
  * Пытаемся получить @username и имя через Telegram API.
@@ -80,7 +81,7 @@ export async function contactRequestStart(ctx: BotContext, targetUserId: number)
   await ctx.answerCbQuery();
 
   // Запоминаем в сессии, что ждём текст
-  ctx.session.contactDraft = { toUserId: targetUserId };
+  getSession(ctx).contactDraft = { toUserId: targetUserId };
 
   await ctx.reply(
     "Напиши короткое сообщение для запроса (до 300 символов).\n" +
@@ -93,14 +94,14 @@ export async function contactDraftText(ctx: BotContext) {
   const fromUserId = ctx.from?.id;
   if (!fromUserId) return;
 
-  const draft = ctx.session.contactDraft;
+  const draft = getSession(ctx).contactDraft;
   if (!draft) return;
 
   const text = (ctx.message as any)?.text as string | undefined;
   if (!text) return;
 
   if (text === "/cancel") {
-    ctx.session.contactDraft = undefined;
+    getSession(ctx).contactDraft = undefined;
     await ctx.reply("Ок, отменил.");
     return;
   }
@@ -142,7 +143,7 @@ export async function contactDraftText(ctx: BotContext) {
     }
   );
 
-  ctx.session.contactDraft = undefined;
+ getSession(ctx).contactDraft = undefined;
   await ctx.reply("Запрос отправлен ✅ Ждём ответ.");
 }
 

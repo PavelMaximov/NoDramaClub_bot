@@ -1,6 +1,7 @@
 import type { BotContext } from "../context";
 import { profilesRepo } from "../../db/repositories/profilesRepo";
 import { config } from "../../config";
+import { getSession } from "../sessionHelpers";
 
 export async function handleAdminEditText(ctx: BotContext) {
   const adminId = ctx.from?.id;
@@ -9,7 +10,7 @@ export async function handleAdminEditText(ctx: BotContext) {
   // работаем только для админов
   if (!config.adminIds.includes(adminId)) return;
 
-  const draft = ctx.session.adminEditDraft;
+  const draft = getSession(ctx).adminEditDraft;
   if (!draft) return; // админ сейчас не в режиме правок
 
   const text = (ctx.message as any)?.text as string | undefined;
@@ -17,7 +18,7 @@ export async function handleAdminEditText(ctx: BotContext) {
 
   // даём админам отменять режим
   if (text.trim() === "/cancel") {
-    ctx.session.adminEditDraft = undefined;
+    getSession(ctx).adminEditDraft = undefined;
     await ctx.reply("Ок, отменил режим правок.");
     return;
   }
@@ -41,7 +42,7 @@ export async function handleAdminEditText(ctx: BotContext) {
       "Выбери «✏️ Изменить анкету», затем отправь на модерацию снова."
   );
 
-  ctx.session.adminEditDraft = undefined;
+  getSession(ctx).adminEditDraft = undefined;
 
   await ctx.reply("Отправил пользователю список правок ✅");
 }

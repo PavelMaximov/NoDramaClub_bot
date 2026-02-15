@@ -1,6 +1,7 @@
 import type { BotContext } from "../context";
 import { feedbacksRepo } from "../../db/repositories/feedbacksRepo";
 import { config } from "../../config";
+import { getSession } from "../sessionHelpers";
 
 const COOLDOWN_HOURS = 2; 
 
@@ -21,7 +22,7 @@ export async function feedbackStart(ctx: BotContext) {
     return;
   }
 
-  ctx.session.feedbackDraft = { type: "feedback" };
+  getSession(ctx).feedbackDraft = { type: "feedback" };
 
   await ctx.reply(
     "Напиши своё предложение/правку одним сообщением (до 800 символов).\n\n" +
@@ -34,14 +35,14 @@ export async function feedbackText(ctx: BotContext) {
   const userId = ctx.from?.id;
   if (!userId) return;
 
-  const draft = ctx.session.feedbackDraft;
+  const draft = getSession(ctx).feedbackDraft;
   if (!draft) return;
 
   const text = (ctx.message as any)?.text as string | undefined;
   if (!text) return;
 
   if (text.trim() === "/cancel") {
-    ctx.session.feedbackDraft = undefined;
+    getSession(ctx).feedbackDraft = undefined;
     await ctx.reply("Ок, отменил.");
     return;
   }
@@ -68,6 +69,6 @@ const who = u.username ? `@${u.username}` : [u.first_name, u.last_name].filter(B
     config.adminIds.map((adminId) => ctx.telegram.sendMessage(adminId, adminText))
   );
 
-  ctx.session.feedbackDraft = undefined;
+  getSession(ctx).feedbackDraft = undefined;
   await ctx.reply("Отправлено ✅ Спасибо. Если нужно — мы уточним.");
 }

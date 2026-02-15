@@ -2,6 +2,7 @@ import type { BotContext } from "../context";
 import { config } from "../../config";
 import { reportsRepo } from "../../db/repositories/reportsRepo";
 import { profilesRepo } from "../../db/repositories/profilesRepo";
+import { getSession } from "../sessionHelpers";
 
 export async function reportStart(ctx: BotContext, targetUserId: number) {
   const reporterId = ctx.from?.id;
@@ -17,7 +18,7 @@ export async function reportStart(ctx: BotContext, targetUserId: number) {
 
   await ctx.answerCbQuery();
 
-  ctx.session.reportDraft = { targetUserId };
+  getSession(ctx).reportDraft = { targetUserId };
 
   await ctx.reply(
     "Опиши причину жалобы (до 400 символов).\n" +
@@ -30,14 +31,14 @@ export async function reportDraftText(ctx: BotContext) {
   const reporterId = ctx.from?.id;
   if (!reporterId) return;
 
-  const draft = ctx.session.reportDraft;
+  const draft = getSession(ctx).reportDraft;
   if (!draft) return;
 
   const text = (ctx.message as any)?.text as string | undefined;
   if (!text) return;
 
   if (text === "/cancel") {
-    ctx.session.reportDraft = undefined;
+    getSession(ctx).reportDraft = undefined;
     await ctx.reply("Ок, отменил жалобу.");
     return;
   }
@@ -62,6 +63,6 @@ export async function reportDraftText(ctx: BotContext) {
 
   await Promise.all(config.adminIds.map((adminId) => ctx.telegram.sendMessage(adminId, msg)));
 
-  ctx.session.reportDraft = undefined;
+getSession(ctx).reportDraft = undefined;
   await ctx.reply("Жалоба отправлена ✅ Спасибо. Мы проверим.");
 }

@@ -3,6 +3,7 @@ import { profilesRepo } from "../../db/repositories/profilesRepo";
 import { inviteService } from "../../services/inviteService";
 import { profilePostService } from "../../services/profilePostService";
 import { userKeyboards } from "../keyboards/userKeyboards";
+import { getSession } from "../sessionHelpers";
 
 export async function adminApprove(ctx: BotContext, userId: number) {
   profilesRepo.patch(userId, { state: "approved" });
@@ -63,7 +64,7 @@ export async function adminRequestEdit(ctx: BotContext, userId: number) {
 
 export async function adminRequestEditStart(ctx: BotContext, userId: number) {
   // сохраняем в сессии админа, что ждём текст правок
-  ctx.session.adminEditDraft = { targetUserId: userId };
+  getSession(ctx).adminEditDraft = { targetUserId: userId };
 
   await ctx.answerCbQuery("Напиши, что исправить");
   await ctx.reply(
