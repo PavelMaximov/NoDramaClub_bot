@@ -34,10 +34,31 @@ import { photosRepo } from "./db/repositories/photosRepo";
 import { adminRequestEditStart } from "./bot/handlers/adminModerationHandlers";
 import { handleAdminEditText } from "./bot/handlers/adminEditTextHandler";
 import { feedbackStart, feedbackText } from "./bot/handlers/feedbackHandlers";
+import http from "http";
+
+function startHealthServer() {
+  const port = Number(process.env.PORT || 8000);
+
+  const server = http.createServer((req, res) => {
+    if (req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok");
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("NoDramaClub bot is running");
+  });
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Health server listening on ${port}`);
+  });
+}
 
 
 
 async function main() {
+    startHealthServer();
+
   migrate();
 
   const bot = createBot();
@@ -301,7 +322,7 @@ async function main() {
   // LAUNCH 
   // =========================
 
-  // await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+  await bot.telegram.deleteWebhook({ drop_pending_updates: true });
   await bot.launch();
   console.log("Bot launched");
 }
