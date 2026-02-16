@@ -357,128 +357,155 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
   },
 
   // Step 8: tags (text)
-  async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return ctx.scene.leave();
+ // Step 8: tags
+async (ctx) => {
+  const userId = ctx.from?.id;
+  if (!userId) return ctx.scene.leave();
 
-    const text = (ctx.message as any)?.text as string | undefined;
+  const text = (ctx.message as any)?.text as string | undefined;
+  if (!text) {
+    await ctx.reply("Напиши интересы текстом (через запятую, до 5).");
+    return;
+  }
 
-    if (!text) {
-      await ctx.reply("Напиши интересы текстом (через запятую, до 5).");
-      return;
+  const tags = text
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  profilesRepo.patch(userId, { tags: JSON.stringify(tags) });
+
+  const mode = (ctx.scene.state as any)?.mode as "new" | "edit" | undefined;
+  const count = photosRepo.count(userId);
+
+  // Если edit и фото уже есть — сразу preview+submit
+  if (mode === "edit" && count >= 2) {
+    const profile = profilesRepo.get(userId);
+    const photos = photosRepo.list(userId);
+
+    await ctx.reply("Фото сохраняем. Проверим анкету перед отправкой:");
+
+    if (photos.length) {
+      await ctx.replyWithMediaGroup(
+        photos.map((p) => ({ type: "photo", media: p.file_id }))
+      );
     }
 
-    const tags = text
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 5);
+    await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
+    ctx.wizard.selectStep(10);
+    return;
+  }
 
-    profilesRepo.patch(userId, { tags: JSON.stringify(tags) });
+  // ✅ ВАЖНО: тут должна быть клавиатура!
+  await ctx.reply(
+    "Теперь отправь 2–3 фото.\n" +
+      "Обязательно фото на которых видно тебя.\n" +
+      "Когда загрузишь минимум 2 — нажми «Готово».",
+    userKeyboards.photosControls()
+  );
 
-    if (isEditOne(ctx)) {
-      await jumpToPreview(ctx);
-      return;
-    }
+  return ctx.wizard.next();
+},
 
-    const mode = getMode(ctx);
+
+  // Step 9: photos
+async (ctx) => {
+  const userId = ctx.from?.id;
+  if (!userId) return ctx.scene.leave();
+
+  const cbData = (ctx.callbackQuery as any)?.data as string | undefined;
+
+  if (cbData) await ctx.answerCbQuery();
+
+  // 1) Удалить все фото
+  if (cbData === "profile:photos:clear") {
+    photosRepo.clear(userId);
+    await ctx.reply(
+      "Фото удалены 🗑\nОтправь 2–3 фото заново.",
+      userKeyboards.photosControls()
+    );
+    return;
+  }
+
+  // 2) Готово
+  if (cbData === "profile:photos:done") {
     const count = photosRepo.count(userId);
 
-    // Если edit и фото уже есть — показываем preview и переводим в submit
-    if (mode === "edit" && count >= 2) {
-      await showPreview(ctx);
-      return;
-    }
-
-    // ✅ ВАЖНО: тут раньше не было клавиатуры — из-за этого "тишина"
-    await ctx.reply(
-      "Теперь отправь 2–3 фото.(Обязательно свои, чтобы тебя было видно)\n" +
-        "Когда загрузишь минимум 2 — нажми «Готово».",
-      userKeyboards.photosControls(),
-    );
-    return ctx.wizard.next();
-  },
-
-  // Step 9: photos (photo OR callbacks)
-  async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return ctx.scene.leave();
-
-    const cbData = (ctx.callbackQuery as any)?.data as string | undefined;
-
-    // callbacks
-    if (cbData) {
-      // ✅ answerCbQuery сразу
-      await ctx.answerCbQuery();
-
-      if (cbData === "profile:photos:clear") {
-        photosRepo.clear(userId);
-        await ctx.reply(
-          "Фото удалены 🗑\nОтправь 2–3 фото заново.",
-          userKeyboards.photosControls(),
-        );
-        return;
-      }
-
-      if (cbData === "profile:photos:done") {
-        const count = photosRepo.count(userId);
-        if (count < 2) {
-          await ctx.reply(
-            `Пока загружено ${count}. Нужно минимум 2 фото.`,
-            userKeyboards.photosControls(),
-          );
-          return;
-        }
-
-        await showPreview(ctx);
-        return ctx.wizard.next();
-      }
-
-      await ctx.reply("Используй кнопки ниже:", userKeyboards.photosControls());
-      return;
-    }
-
-    // photo messages
-    const photo = (ctx.message as any)?.photo?.at?.(-1);
-    if (photo?.file_id) {
-      photosRepo.add(userId, photo.file_id);
-
-      const count = photosRepo.count(userId);
-
-      if (count >= 3) {
-        await ctx.reply("Загружено 3 фото — достаточно ✅");
-        await showPreview(ctx);
-        return ctx.wizard.next();
-      }
-
+    if (count < 2) {
       await ctx.reply(
-        `Фото добавлено ✅ (${count}/3). Можно добавить ещё или нажать «Готово» (мин. 2).`,
-        userKeyboards.photosControls(),
+        `Пока загружено ${count}. Нужно минимум 2 фото.`,
+        userKeyboards.photosControls()
       );
       return;
     }
 
-    await ctx.reply(
-      "Пришли фото сообщением или нажми «Готово», когда будет минимум 2.",
-      userKeyboards.photosControls(),
-    );
-  },
+    const profile = profilesRepo.get(userId);
+    const photos = photosRepo.list(userId);
 
-  // Step 10: submit callback
-  async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return ctx.scene.leave();
+    await ctx.reply("Проверим анкету перед отправкой:");
 
-    const data = (ctx.callbackQuery as any)?.data as string | undefined;
-
-    if (!data) {
-      await ctx.reply("Нажми кнопку ниже:", userKeyboards.previewActions());
-      return;
+    if (photos.length) {
+      await ctx.replyWithMediaGroup(
+        photos.map((p) => ({ type: "photo", media: p.file_id }))
+      );
     }
 
-    if (data === "profile:submit") {
-      await ctx.answerCbQuery();
+    await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
+    return ctx.wizard.next();
+  }
 
+  // 3) Приём фото
+  const photo = (ctx.message as any)?.photo?.at?.(-1);
+  if (photo?.file_id) {
+    photosRepo.add(userId, photo.file_id);
+
+    const count = photosRepo.count(userId);
+
+    if (count >= 3) {
+      await ctx.reply("Загружено 3 фото — достаточно ✅");
+
+      const profile = profilesRepo.get(userId);
+      const photos = photosRepo.list(userId);
+
+      await ctx.reply("Проверим анкету перед отправкой:");
+
+      if (photos.length) {
+        await ctx.replyWithMediaGroup(
+          photos.map((p) => ({ type: "photo", media: p.file_id }))
+        );
+      }
+
+      await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
+      return ctx.wizard.next();
+    }
+
+    await ctx.reply(
+      `Фото добавлено ✅ (${count}/3). Можно добавить ещё или нажать «Готово» (мин. 2).`,
+      userKeyboards.photosControls()
+    );
+    return;
+  }
+
+  // 4) Всё остальное — мини-fallback
+  await ctx.reply(
+    "Пришли фото сообщением или нажми «Готово», когда будет минимум 2.",
+    userKeyboards.photosControls()
+  );
+},
+
+
+  // Step 10: waiting for submit callback
+async (ctx) => {
+  const userId = ctx.from?.id;
+  if (!userId) return ctx.scene.leave();
+
+  const data = (ctx.callbackQuery as any)?.data as string | undefined;
+
+  if (data === "profile:submit") {
+    await ctx.answerCbQuery();
+
+    try {
       const current = profilesRepo.get(userId);
 
       if (current?.posted_message_id) {
@@ -486,21 +513,32 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       }
 
       profilesRepo.patch(userId, { state: "pending" });
+
       await ctx.reply("Заявка отправлена на модерацию ✅");
+
       await moderationService.notifyAdminsNewProfile(ctx.telegram, userId);
 
       return ctx.scene.leave();
+    } catch (e) {
+      console.error("SUBMIT ERROR:", e);
+      await ctx.reply(
+        "Не получилось отправить на модерацию из-за ошибки. Попробуй ещё раз через минуту."
+      );
+      return;
     }
+  }
 
-    if (data === "profile:start") {
-      await ctx.answerCbQuery();
-      return ctx.scene.reenter();
-    }
-
-    // неизвестная кнопка
+  if (data === "profile:start") {
     await ctx.answerCbQuery();
-    await ctx.reply("Нажми кнопку ниже:", userKeyboards.previewActions());
-  },
+    return ctx.scene.reenter();
+  }
+
+  // мини-fallback + чтобы не было "кнопки нет"
+  await ctx.reply(
+    "Нажми кнопку «Отправить на модерацию».",
+    userKeyboards.submit()
+  );
+},
 );
 
 function formatProfilePreview(profile: any) {

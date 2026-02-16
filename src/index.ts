@@ -58,12 +58,13 @@ async function main() {
     console.error("BOT ERROR:", err);
   });
 
-  // Debug лог апдейтов (можно убрать позже)
+  // Debug лог апдейтов 
   bot.use(async (ctx, next) => {
     console.log("UPDATE:", ctx.updateType, {
       text: (ctx.message as any)?.text,
       chatId: ctx.chat?.id,
       fromId: ctx.from?.id,
+      username: ctx.from?.username ? `@${ctx.from.username}` : undefined,
       callback: (ctx.callbackQuery as any)?.data,
       chatType: ctx.chat?.type,
     });
@@ -165,8 +166,7 @@ async function main() {
   });
 
   bot.hears("🔎 Поиск", async (ctx) => {
-    // у тебя сейчас поиск по городу идёт как выбор города (кнопками).
-    // если ты перешёл на хештеги (#Berlin) — эту кнопку можно позже убрать.
+    
     await ctx.reply("Выбери город для поиска:", userKeyboards.cityMain());
   });
 
