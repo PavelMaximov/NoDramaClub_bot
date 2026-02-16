@@ -91,6 +91,13 @@ export const userKeyboards = {
     ]);
   },
 
+  editOrDelete() {
+    return Markup.inlineKeyboard([
+      [Markup.button.callback("✏️ Заполнить анкету заново", "profile:start")],
+      [Markup.button.callback("🗑 Удалить анкету", "profile:delete")],
+    ]);
+  },
+
   gender() {
     return Markup.inlineKeyboard([
       [Markup.button.callback("Парень", "profile:gender:male")],

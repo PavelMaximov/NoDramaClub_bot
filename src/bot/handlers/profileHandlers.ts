@@ -22,7 +22,7 @@ export async function showMyProfile(ctx: BotContext) {
 
   const text = formatProfilePreview(profile);
 
-  await ctx.reply(text + `\n\nСтатус: ${profile.state}`, userKeyboards.main());
+  await ctx.reply(text + `\n\nСтатус: ${profile.state}`, userKeyboards.editOrDelete());
 }
 
 function formatProfilePreview(profile: any) {
