@@ -112,6 +112,13 @@ export const userKeyboards = {
     ]);
   },
 
+  previewActions() {
+    return Markup.inlineKeyboard([
+      [{ text: "✅ Отправить на модерацию", callback_data: "profile:submit" }],
+      [{ text: "✏️ Изменить анкету", callback_data: "profile:editmenu" }],
+    ]);
+  },
+
   deleteConfirm() {
     return Markup.inlineKeyboard([
       [
@@ -180,5 +187,16 @@ export const userKeyboards = {
     ]);
   },
 
-  
+   editProfileMenu() {
+    return Markup.inlineKeyboard([
+      [{ text: "Имя", callback_data: "profile:editfield:name" }],
+      [{ text: "Статус", callback_data: "profile:editfield:status" }],
+      [{ text: "Город", callback_data: "profile:editfield:city" }],
+      [{ text: "Место (район/посёлок)", callback_data: "profile:editfield:location" }],
+      [{ text: "Возраст", callback_data: "profile:editfield:age" }],
+      [{ text: "Описание", callback_data: "profile:editfield:about" }],
+      [{ text: "Фото (перезагрузить)", callback_data: "profile:editfield:photos" }],
+      [{ text: "Отмена", callback_data: "profile:editfield:cancel" }],
+    ]);
+  },
 };

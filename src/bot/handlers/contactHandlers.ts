@@ -111,7 +111,6 @@ export async function contactRequestStart(ctx: BotContext, targetUserId: number)
     targetUserId,
     "Новый запрос на контакт 💌\n\n" +
       `От: ${fromIdentity.label}${metaLine}\n\n` +
-      `Сообщение:\n${defaultMessage}\n\n` +
       "Принять?",
     {
       reply_markup: {

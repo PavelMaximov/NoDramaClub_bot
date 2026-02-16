@@ -8,22 +8,114 @@ import { userKeyboards } from "../keyboards/userKeyboards";
 import { moderationService } from "../../services/moderationService";
 import { profileDeleteService } from "../../services/profileDeleteService";
 
+type WizardMode = "new" | "edit" | "edit_one" | undefined;
+
+type EditField =
+  | "gender"
+  | "status"
+  | "name"
+  | "city"
+  | "location"
+  | "age"
+  | "about"
+  | "tags"
+  | "photos";
+
+function getMode(ctx: BotContext): WizardMode {
+  return (ctx.scene.state as any)?.mode as WizardMode;
+}
+
+function getEditField(ctx: BotContext): EditField | undefined {
+  return (ctx.scene.state as any)?.field as EditField | undefined;
+}
+
+function isEditOne(ctx: BotContext): boolean {
+  return getMode(ctx) === "edit_one";
+}
+
+const PREVIEW_STEP = 10;
+
+
+async function showPreview(ctx: BotContext) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  const profile = profilesRepo.get(userId);
+  const photos = photosRepo.list(userId);
+
+  await ctx.reply("Проверим анкету перед отправкой:");
+
+  if (photos.length) {
+    await ctx.replyWithMediaGroup(
+      photos.map((p) => ({ type: "photo", media: p.file_id })),
+    );
+  }
+
+  await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
+
+  ctx.wizard.selectStep(PREVIEW_STEP);
+}
+
+
+async function jumpToPreview(ctx: BotContext) {
+  await showPreview(ctx);
+  return;
+}
+
 export const profileWizard = new Scenes.WizardScene<BotContext>(
   "PROFILE_WIZARD",
 
-  // Step 0: ensure rows + ask gender
+  // Step 0: init + routing
   async (ctx) => {
     const userId = ctx.from?.id;
-    const mode = (ctx.scene.state as any)?.mode as "new" | "edit" | undefined;
-
     if (!userId) return ctx.scene.leave();
+
+    const mode = (ctx.scene.state as any)?.mode as string | undefined;
+    const field = (ctx.scene.state as any)?.field as string | undefined;
 
     usersRepo.ensure(userId);
     profilesRepo.ensure(userId);
-    if (mode !== "edit") {
+
+    // При новой анкете чистим фото, при edit/edit_one — нет
+    if (mode !== "edit" && mode !== "edit_one") {
       photosRepo.clear(userId);
     }
 
+    // Если редактируем только фото — сразу на шаг фото
+    if (mode === "edit_one" && field === "photos") {
+      photosRepo.clear(userId);
+      ctx.wizard.selectStep(9);
+      await ctx.reply(
+        "Перезагрузка фото.\nОтправь 2–3 фото (по одному сообщению).\n" +
+          "Когда загрузишь минимум 2 — нажми «Готово».",
+        userKeyboards.photosControls(),
+      );
+      return;
+    }
+
+    // Роутинг на конкретный шаг (edit_one)
+    if (mode === "edit_one" && field) {
+      const STEP_BY_FIELD: Record<string, number> = {
+        gender: 1,
+        status: 2,
+        name: 3,
+        city: 4,
+        location: 5,
+        age: 6,
+        about: 7,
+        tags: 8,
+        photos: 9,
+      };
+
+      const targetStep = STEP_BY_FIELD[field];
+      if (typeof targetStep === "number") {
+        // ставим курсор на шаг перед нужным и делаем next()
+        ctx.wizard.selectStep(Math.max(0, targetStep - 1));
+        return ctx.wizard.next();
+      }
+    }
+
+    // Обычный сценарий
     await ctx.reply(
       "Выбери свой пол (это определит ветку в чате):",
       userKeyboards.gender(),
@@ -31,37 +123,49 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     return ctx.wizard.next();
   },
 
-  // Step 1: catch gender callback
+  // Step 1: gender callback
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const data = (ctx.callbackQuery as any)?.data as string | undefined;
-    if (!data?.startsWith("profile:gender:")) {
-      await ctx.reply("Нажми одну из кнопок: Парень или Девушка.");
+
+    // mini-fallback
+    if (!data || !data.startsWith("profile:gender:")) {
+      await ctx.reply("Выбери пол кнопкой ниже:", userKeyboards.gender());
       return;
     }
+
+    await ctx.answerCbQuery();
 
     const gender = data.endsWith(":male")
       ? ("male" as Gender)
       : ("female" as Gender);
+
     profilesRepo.patch(userId, { gender });
 
-    await ctx.answerCbQuery();
+    if (isEditOne(ctx)) {
+      await jumpToPreview(ctx);
+      return;
+    }
+
     await ctx.reply("Теперь выбери статус:", userKeyboards.relationship());
     return ctx.wizard.next();
   },
 
-  // Step 2: relationship status
+  // Step 2: relationship status callback
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const data = (ctx.callbackQuery as any)?.data as string | undefined;
-    if (!data?.startsWith("profile:rel:")) {
-      await ctx.reply("Нажми одну из кнопок: В отношениях / Без отношений.");
+
+    if (!data || !data.startsWith("profile:rel:")) {
+      await ctx.reply("Выбери статус кнопкой ниже:", userKeyboards.relationship());
       return;
     }
+
+    await ctx.answerCbQuery();
 
     const relationship_status = data.endsWith(":in_relation")
       ? ("in_relation" as RelationshipStatus)
@@ -69,19 +173,28 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     profilesRepo.patch(userId, { relationship_status });
 
-    await ctx.answerCbQuery();
-    await ctx.reply("Укажи свое Имя, которое будет отображаться в анкете:");
+    if (isEditOne(ctx)) {
+      await jumpToPreview(ctx);
+      return;
+    }
+
+    await ctx.reply("Укажи своё имя (2–20 символов):");
     return ctx.wizard.next();
   },
 
-  // Step 3: display name
+  // Step 3: display name (text)
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const text = (ctx.message as any)?.text as string | undefined;
-    const name = (text ?? "").trim();
 
+    if (!text) {
+      await ctx.reply("Напиши имя текстом (2–20 символов).");
+      return;
+    }
+
+    const name = text.trim();
     if (name.length < 2 || name.length > 20) {
       await ctx.reply("Имя должно быть 2–20 символов. Попробуй ещё раз.");
       return;
@@ -89,70 +202,85 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     profilesRepo.patch(userId, { display_name: name });
 
-    await ctx.reply(
-      "Выбери основной город (для фильтрации):",
-      userKeyboards.cityMain(),
-    );
+    if (isEditOne(ctx)) {
+      await jumpToPreview(ctx);
+      return;
+    }
+
+    await ctx.reply("Выбери основной город:", userKeyboards.cityMain());
     return ctx.wizard.next();
   },
 
-  // Step 4: city main (buttons)
+  // Step 4: city callback
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const data = (ctx.callbackQuery as any)?.data as string | undefined;
-    if (!data?.startsWith("profile:city:")) {
-      await ctx.reply(
-        "Выбери основной город кнопкой ниже. (Детали проживания уточним позже)",
-      );
+
+    if (!data || !data.startsWith("profile:city:")) {
+      await ctx.reply("Выбери город кнопкой ниже:", userKeyboards.cityMain());
       return;
     }
+
+    await ctx.answerCbQuery();
 
     const city = data.replace("profile:city:", "");
     profilesRepo.patch(userId, { city_main: city });
 
-    await ctx.answerCbQuery();
-
     await ctx.reply(
-      "Уточни место проживания (район/посёлок/село рядом). Можно коротко.\n" +
-        "Пример: Spandau / рядом с Potsdam / Dorf bei München. \n" +
-        "Или нажми кнопку «Пропустить», если не хочешь указывать детали.",
+      "Уточни место проживания (район/посёлок/село рядом) или нажми «Пропустить».",
       userKeyboards.skipLocationDetail(),
     );
     return ctx.wizard.next();
   },
 
-  // Step 5: location detail
+  // Step 5: location detail (text OR skip callback)
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
-    // 1) Если нажали кнопку "Пропустить"
     const cbData = (ctx.callbackQuery as any)?.data as string | undefined;
-    if (cbData === "profile:locdetail:skip") {
-      // Вариант А (проще): ставим null всегда
-      profilesRepo.patch(userId, { location_detail: null });
+
+    // callback branch
+    if (cbData) {
+      if (cbData !== "profile:locdetail:skip") {
+        await ctx.answerCbQuery();
+        await ctx.reply(
+          "Нажми «Пропустить» или напиши место текстом.",
+          userKeyboards.skipLocationDetail(),
+        );
+        return;
+      }
 
       await ctx.answerCbQuery();
-      await ctx.reply("Ок, пропустили. Сколько тебе лет? (числом)");
-      return ctx.wizard.next();
-    }
-
-    // 2) Если это текст
-    const text = (ctx.message as any)?.text as string | undefined;
-    const detail = (text ?? "").trim();
-
-    if (detail.length === 0) {
       profilesRepo.patch(userId, { location_detail: null });
-      await ctx.reply("Ок. Сколько тебе лет? (числом)");
+
+      // если редактируем только city/location — сразу preview
+      const field = getEditField(ctx);
+      if (isEditOne(ctx) && (field === "city" || field === "location")) {
+        await jumpToPreview(ctx);
+        return;
+      }
+
+      await ctx.reply("Ок, пропустили. Сколько тебе лет? (числом 18–99)");
       return ctx.wizard.next();
     }
 
-    // Минимум 2 символа, если уже что-то ввёл
+    const text = (ctx.message as any)?.text as string | undefined;
+
+    if (!text) {
+      await ctx.reply(
+        "Напиши место текстом или нажми «Пропустить».",
+        userKeyboards.skipLocationDetail(),
+      );
+      return;
+    }
+
+    const detail = text.trim();
     if (detail.length < 2) {
       await ctx.reply(
-        "Слишком коротко. Напиши чуть конкретнее (минимум 2 символа) или нажми «Пропустить».",
+        "Слишком коротко. Напиши минимум 2 символа или нажми «Пропустить».",
         userKeyboards.skipLocationDetail(),
       );
       return;
@@ -160,57 +288,86 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     profilesRepo.patch(userId, { location_detail: detail });
 
-    await ctx.reply("Сколько тебе лет? (числом)");
+    const field = getEditField(ctx);
+    if (isEditOne(ctx) && (field === "city" || field === "location")) {
+      await jumpToPreview(ctx);
+      return;
+    }
+
+    await ctx.reply("Сколько тебе лет? (числом 18–99)");
     return ctx.wizard.next();
   },
 
-  // Step 6: age
+  // Step 6: age (text)
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const text = (ctx.message as any)?.text as string | undefined;
+
+    if (!text) {
+      await ctx.reply("Введи возраст числом (18–99).");
+      return;
+    }
+
     const age = Number(text);
     if (!Number.isInteger(age) || age < 18 || age > 99) {
-      await ctx.reply(
-        "Возраст должен быть числом от 18 до 99. Попробуй ещё раз.",
-      );
+      await ctx.reply("Возраст должен быть числом от 18 до 99. Попробуй ещё раз.");
       return;
     }
 
     profilesRepo.patch(userId, { age });
+
+    if (isEditOne(ctx)) {
+      await jumpToPreview(ctx);
+      return;
+    }
+
     await ctx.reply("Напиши о себе или что ты ищешь (минимум 20 символов):");
     return ctx.wizard.next();
   },
 
-  // Step 7: about
+  // Step 7: about (text)
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const text = (ctx.message as any)?.text as string | undefined;
-    if (!text || text.trim().length < 20) {
-      await ctx.reply("Напиши о себе или что ты ищешь (минимум 20 символов):");
+
+    if (!text) {
+      await ctx.reply("Напиши о себе текстом (минимум 20 символов).");
       return;
     }
 
-    profilesRepo.patch(userId, { about: text.trim() });
+    const about = text.trim();
+    if (about.length < 20) {
+      await ctx.reply("Нужно минимум 20 символов. Попробуй ещё раз.");
+      return;
+    }
+
+    profilesRepo.patch(userId, { about });
+
+    if (isEditOne(ctx)) {
+      await jumpToPreview(ctx);
+      return;
+    }
+
     await ctx.reply("Интересы (через запятую, до 5):");
     return ctx.wizard.next();
   },
 
-  // Step 8: tags
+  // Step 8: tags (text)
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const text = (ctx.message as any)?.text as string | undefined;
+
     if (!text) {
-      await ctx.reply("Напиши интересы текстом.");
+      await ctx.reply("Напиши интересы текстом (через запятую, до 5).");
       return;
     }
 
-    // очень простая нормализация
     const tags = text
       .split(",")
       .map((t) => t.trim())
@@ -219,139 +376,117 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     profilesRepo.patch(userId, { tags: JSON.stringify(tags) });
 
-    const mode = (ctx.scene.state as any)?.mode as "new" | "edit" | undefined;
-    
-    const count = photosRepo.count(userId);
-
-    if (mode === "edit" && count >= 2) {
-      // Фото уже есть — пропускаем шаг загрузки фото
-      const profile = profilesRepo.get(userId);
-      const photos = photosRepo.list(userId);
-
-      await ctx.reply("Фото сохраняем. Проверим анкету перед отправкой:");
-
-      if (photos.length) {
-        await ctx.replyWithMediaGroup(
-          photos.map((p) => ({ type: "photo", media: p.file_id })),
-        );
-      }
-
-      await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
-      return ctx.wizard.selectStep(10); // перейти на шаг submit
+    if (isEditOne(ctx)) {
+      await jumpToPreview(ctx);
+      return;
     }
 
+    const mode = getMode(ctx);
+    const count = photosRepo.count(userId);
+
+    // Если edit и фото уже есть — показываем preview и переводим в submit
+    if (mode === "edit" && count >= 2) {
+      await showPreview(ctx);
+      return;
+    }
+
+    // ✅ ВАЖНО: тут раньше не было клавиатуры — из-за этого "тишина"
     await ctx.reply(
-      "Теперь отправь 2–3 фото.\n" +
-        "Обязательно фото на которых видно тебя. \n" +
-        "Когда загрузишь минимум 2 — нажми «Готово»."
+      "Теперь отправь 2–3 фото.(Обязательно свои, чтобы тебя было видно)\n" +
+        "Когда загрузишь минимум 2 — нажми «Готово».",
+      userKeyboards.photosControls(),
     );
     return ctx.wizard.next();
   },
 
-  // Step 9: photos (accept photo messages + /donephotos)
+  // Step 9: photos (photo OR callbacks)
   async (ctx) => {
-  const userId = ctx.from?.id;
-  if (!userId) return ctx.scene.leave();
+    const userId = ctx.from?.id;
+    if (!userId) return ctx.scene.leave();
 
-  const cbData = (ctx.callbackQuery as any)?.data as string | undefined;
+    const cbData = (ctx.callbackQuery as any)?.data as string | undefined;
 
-  // A) Удалить все фото
-  if (cbData === "profile:photos:clear") {
-    await ctx.answerCbQuery();
+    // callbacks
+    if (cbData) {
+      // ✅ answerCbQuery сразу
+      await ctx.answerCbQuery();
 
-    photosRepo.clear(userId);
+      if (cbData === "profile:photos:clear") {
+        photosRepo.clear(userId);
+        await ctx.reply(
+          "Фото удалены 🗑\nОтправь 2–3 фото заново.",
+          userKeyboards.photosControls(),
+        );
+        return;
+      }
 
-    await ctx.reply(
-      "Фото удалены 🗑\nОтправь 2–3 фото заново.",
-      userKeyboards.photosControls()
-    );
-    return; // остаёмся на этом же шаге
-  }
+      if (cbData === "profile:photos:done") {
+        const count = photosRepo.count(userId);
+        if (count < 2) {
+          await ctx.reply(
+            `Пока загружено ${count}. Нужно минимум 2 фото.`,
+            userKeyboards.photosControls(),
+          );
+          return;
+        }
 
-  // B) Готово
-  if (cbData === "profile:photos:done") {
-    await ctx.answerCbQuery();
+        await showPreview(ctx);
+        return ctx.wizard.next();
+      }
 
-    const count = photosRepo.count(userId);
-    if (count < 2) {
+      await ctx.reply("Используй кнопки ниже:", userKeyboards.photosControls());
+      return;
+    }
+
+    // photo messages
+    const photo = (ctx.message as any)?.photo?.at?.(-1);
+    if (photo?.file_id) {
+      photosRepo.add(userId, photo.file_id);
+
+      const count = photosRepo.count(userId);
+
+      if (count >= 3) {
+        await ctx.reply("Загружено 3 фото — достаточно ✅");
+        await showPreview(ctx);
+        return ctx.wizard.next();
+      }
+
       await ctx.reply(
-        `Пока загружено ${count}. Нужно минимум 2 фото.`,
-        userKeyboards.photosControls()
+        `Фото добавлено ✅ (${count}/3). Можно добавить ещё или нажать «Готово» (мин. 2).`,
+        userKeyboards.photosControls(),
       );
       return;
     }
 
-    const profile = profilesRepo.get(userId);
-    const photos = photosRepo.list(userId);
-
-    await ctx.reply("Проверим анкету перед отправкой:");
-
-    if (photos.length) {
-      await ctx.replyWithMediaGroup(
-        photos.map((p) => ({ type: "photo", media: p.file_id }))
-      );
-    }
-
-    await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
-    return ctx.wizard.next(); // следующий шаг = submit
-  }
-
-  // C) Приём фото
-  const photo = (ctx.message as any)?.photo?.at?.(-1);
-  if (photo?.file_id) {
-    photosRepo.add(userId, photo.file_id);
-
-    const count = photosRepo.count(userId);
-
-    if (count >= 3) {
-      await ctx.reply("Загружено 3 фото — достаточно ✅");
-
-      const profile = profilesRepo.get(userId);
-      const photos = photosRepo.list(userId);
-
-      await ctx.reply("Проверим анкету перед отправкой:");
-      await ctx.replyWithMediaGroup(
-        photos.map((p) => ({ type: "photo", media: p.file_id }))
-      );
-      await ctx.reply(formatProfilePreview(profile), userKeyboards.submit());
-      return ctx.wizard.next();
-    }
-
     await ctx.reply(
-      `Фото добавлено ✅ (${count}/3). Можно добавить ещё или нажать «Готово» (мин. 2).`,
-      userKeyboards.photosControls()
+      "Пришли фото сообщением или нажми «Готово», когда будет минимум 2.",
+      userKeyboards.photosControls(),
     );
-    return;
-  }
+  },
 
-  // D) Всё остальное
-  await ctx.reply(
-    "Пришли фото сообщением или нажми «Готово», когда будет минимум 2.",
-    userKeyboards.photosControls()
-  );
-},
-
-  // Step 10: waiting for submit callback
+  // Step 10: submit callback
   async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return ctx.scene.leave();
 
     const data = (ctx.callbackQuery as any)?.data as string | undefined;
+
+    if (!data) {
+      await ctx.reply("Нажми кнопку ниже:", userKeyboards.previewActions());
+      return;
+    }
+
     if (data === "profile:submit") {
+      await ctx.answerCbQuery();
+
       const current = profilesRepo.get(userId);
 
       if (current?.posted_message_id) {
-        await profileDeleteService.deletePublishedPostsOnly(
-          ctx.telegram,
-          userId,
-        );
+        await profileDeleteService.deletePublishedPostsOnly(ctx.telegram, userId);
       }
 
       profilesRepo.patch(userId, { state: "pending" });
-
-      await ctx.answerCbQuery();
       await ctx.reply("Заявка отправлена на модерацию ✅");
-
       await moderationService.notifyAdminsNewProfile(ctx.telegram, userId);
 
       return ctx.scene.leave();
@@ -362,16 +497,18 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return ctx.scene.reenter();
     }
 
-    await ctx.reply("Нажми кнопку: Отправить на модерацию или Изменить.");
+    // неизвестная кнопка
+    await ctx.answerCbQuery();
+    await ctx.reply("Нажми кнопку ниже:", userKeyboards.previewActions());
   },
 );
 
 function formatProfilePreview(profile: any) {
-  const genderLabel = profile?.gender === "male" ? "Парень" : "Девушка";
   const relLabel =
     profile?.relationship_status === "in_relation"
       ? "В отношениях"
       : "Без отношений";
+
   const tags = safeParseTags(profile?.tags);
 
   return (

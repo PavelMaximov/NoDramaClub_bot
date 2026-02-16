@@ -40,7 +40,6 @@ export const profilePostService = {
         inline_keyboard: [
           [{ text: "💌 Запросить контакт", callback_data: `contact:request:${userId}` }],
           [{ text: "🚩 Пожаловаться", callback_data: `report:${userId}` }],
-          [{ text: `🔎 ${city}`, callback_data: `search:city:${encodeCity(city)}` }],
         ],
       },
     });
@@ -74,14 +73,15 @@ function formatProfileForGroup(profile: any) {
 
   const tags = safeParseTags(profile.tags);
   const tagsLine = tags.length ? tags.join(", ") : "-";
+  const cityTag = profile.city_main ? cityToHashtag(profile.city_main) : "";
 
   return (
     `Анкета\n` +
   `Имя: ${profile.display_name ?? "-"}\n` +
-  `Статус: ${relLabel}\n` +
-  `Город: ${profile.city_main ?? "-"}\n` +
-  `Место: ${profile.location_detail ?? profile.city_main }\n` +
   `Возраст: ${profile.age ?? "-"}\n` +
+  `Статус: ${relLabel}\n` +
+  (profile.city_main ? `Город: ${cityTag}\n` : "") +
+  `Место: ${profile.location_detail ?? profile.city_main }\n` +
   `Интересы: ${tagsLine}\n\n` +
   `О себе:\n${profile.about ?? "-"}`
   );
@@ -95,6 +95,24 @@ function safeParseTags(raw: string | null | undefined): string[] {
   } catch {
     return [];
   }
+}
+
+function cityToHashtag(cityRaw: string) {
+  const map: Record<string, string> = {
+    ä: "ae", ö: "oe", ü: "ue", ß: "ss",
+    Ä: "Ae", Ö: "Oe", Ü: "Ue",
+  };
+
+  const replaced = cityRaw.replace(/[äöüßÄÖÜ]/g, (ch) => map[ch] ?? ch);
+
+  const cleaned = replaced
+    .replace(/[^a-zA-Z0-9 ]/g, " ")   // убираем спецсимволы
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join("");
+
+  return cleaned ? `#${cleaned}` : "";
 }
 
 
