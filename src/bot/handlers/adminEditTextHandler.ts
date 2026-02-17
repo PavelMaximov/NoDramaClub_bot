@@ -25,7 +25,7 @@ export async function handleAdminEditText(ctx: BotContext) {
 
   const feedback = text.trim().slice(0, 800);
   if (feedback.length < 2) {
-    await ctx.reply("Слишком коротко. Напиши конкретнее или /cancel");
+    await ctx.reply("Занадто коротко. Напиши конкретніше або /cancel");
     return;
   }
 

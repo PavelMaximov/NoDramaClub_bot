@@ -191,8 +191,8 @@ async function main() {
     await ctx.reply("Меню:", userMenu.main());
   });
 
-  bot.hears("🆘 Написати адміну", async (ctx) => {
-    await supportStart(ctx);
+  bot.hears([" Звʼязатися з адміном", " Написати адміну", "🆘 Написати адміну"], async (ctx) => {
+    await feedbackStart(ctx);
   });
 
   // 6) INLINE ACTIONS (анкета)

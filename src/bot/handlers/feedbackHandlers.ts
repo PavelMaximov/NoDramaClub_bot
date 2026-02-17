@@ -14,7 +14,7 @@ export async function feedbackStart(ctx: BotContext) {
   const since = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000).toISOString();
   const sent = feedbacksRepo.countSince(userId, since);
 
-  if (sent >= 1) {
+  if (sent >= 2) {
     await ctx.reply(
       `Ти вже відправляв повідомлення нещодавно.\n` +
       `Можна відправляти не частіше ніж 1 раз на ${COOLDOWN_HOURS} годин.\n\n` +

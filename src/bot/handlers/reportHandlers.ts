@@ -33,13 +33,13 @@ export async function reportStart(ctx: BotContext, targetUserId: number) {
   if (!fromUserId) return;
 
   if (fromUserId === targetUserId) {
-    await ctx.answerCbQuery("Нельзя пожаловаться на самого себя", { show_alert: true });
+    await ctx.answerCbQuery("Не можна скаржитися на самого себе", { show_alert: true });
     return;
   }
 
   const targetProfile = profilesRepo.get(targetUserId);
   if (!targetProfile || targetProfile.state !== "approved") {
-    await ctx.answerCbQuery("Анкета сейчас недоступна", { show_alert: true });
+    await ctx.answerCbQuery("Анкета зараз недоступна", { show_alert: true });
     return;
   }
 
@@ -51,19 +51,19 @@ export async function reportStart(ctx: BotContext, targetUserId: number) {
   const ok = await safeDm(
     ctx,
     fromUserId,
-    "🚩 Жалоба на анкету\n\n" +
+    "🚩 Скарга на анкету\n\n" +
       `Кого: ${targetLabel}\n\n` +
-      "Напиши одним сообщением, что случилось (до 800 символов).\n" +
-      "Важно: бессмысленный спам → бан.\n\n" +
-      "Отмена: /cancel"
+      "Напиши одним повідомленням, що сталося (до 800 символів).\n" +
+      "Важливо: безглуздий спам → бан.\n\n" +
+      "Скасувати: /cancel"
   );
 
   if (ok) {
-    await ctx.answerCbQuery("Напиши жалобу в личке бота");
+    await ctx.answerCbQuery("Напиши скаргу в особистих повідомленнях бота");
   } else {
     getSession(ctx).reportDraft = undefined;
     await ctx.answerCbQuery(
-      "Не могу написать тебе в личку. Открой бота в ЛС и нажми /start, затем повтори.",
+      "Не можу написати тобі в особисті повідомлення. Відкрий бота в ЛС і натисни /start, потім повтори.",
       { show_alert: true }
     );
   }
@@ -82,13 +82,13 @@ export async function reportDraftText(ctx: BotContext) {
 
   if (text.trim() === "/cancel") {
     getSession(ctx).reportDraft = undefined;
-    await ctx.reply("Ок, отменил.");
+    await ctx.reply("Ок, скасовано.");
     return;
   }
 
   const msg = text.trim().slice(0, 800);
   if (msg.length < 5) {
-    await ctx.reply("Слишком коротко. Опиши подробнее или /cancel");
+    await ctx.reply("Занадто коротко. Опиши детальніше або /cancel");
     return;
   }
 
