@@ -4,6 +4,7 @@ import { inviteService } from "../../services/inviteService";
 import { profilePostService } from "../../services/profilePostService";
 import { userKeyboards } from "../keyboards/userKeyboards";
 import { getSession } from "../sessionHelpers";
+import { adminEditKeyboard } from "../keyboards/adminKeyboards";
 
 export async function adminApprove(ctx: BotContext, userId: number) {
   profilesRepo.patch(userId, { state: "approved" });
@@ -14,9 +15,9 @@ export async function adminApprove(ctx: BotContext, userId: number) {
 
   await ctx.telegram.sendMessage(
     userId,
-    "Анкета одобрена ✅\n\n" +
-      "Нажми кнопку ниже, чтобы войти в чат.\n" +
-      "Ссылка одноразовая и действует ограниченное время.",
+    "Анкета схвалена ✅\n\n" +
+      "Натисни кнопку нижче, щоб увійти в чат.\n" +
+      "Посилання одноразове і діє обмежений час.",
     {
       reply_markup: {
         inline_keyboard: [[{ text: "Войти в чат", url: link }]],
@@ -36,8 +37,8 @@ export async function adminReject(ctx: BotContext, userId: number) {
 
   await ctx.telegram.sendMessage(
     userId,
-    "Анкета отклонена ❌\n" +
-      "Если хочешь — заполни анкету заново и добавь больше информации без ссылок/рекламы.",
+    "Анкета відхилена ❌\n" +
+      "Будь ласка, онови анкету знову і додай більше інформації без посилань/реклами.",
   );
 
   await ctx.answerCbQuery("Rejected");
@@ -45,21 +46,17 @@ export async function adminReject(ctx: BotContext, userId: number) {
 }
 
 export async function adminRequestEdit(ctx: BotContext, userId: number) {
+  // помечаем как "нужны правки"
   profilesRepo.patch(userId, { state: "pending_edit" });
 
-  await ctx.telegram.sendMessage(
-    userId,
-    "Потрібні правки по анкеті 📝\n" +
-      "Будь ласка, онови опис/інтереси та надішли анкету знову.\n" +
-      "Команда: /start → Заповнити анкету.",
-      userKeyboards.main(),
+  // показываем админу кнопки выбора этапа
+  await ctx.reply(
+    "Оберіть, що саме потрібно виправити в анкеті:",
+    adminEditKeyboard.chooseFields(userId)
   );
 
-  await ctx.answerCbQuery("Edit requested");
-  await tryEditAdminMessage(
-    ctx,
-    "📝 Запрошены правки. Пользователь уведомлён.",
-  );
+  await ctx.answerCbQuery("Edit menu");
+  await tryEditAdminMessage(ctx, "✏️ Запрошено правки.\nОбери, що виправити (кнопками нижче).");
 }
 
 export async function adminRequestEditStart(ctx: BotContext, userId: number) {

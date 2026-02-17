@@ -37,6 +37,12 @@ import { feedbackStart, feedbackText } from "./bot/handlers/feedbackHandlers";
 import { profileDeleteService } from "./services/profileDeleteService";
 import { profilesRepo } from "./db/repositories/profilesRepo";
 import { photosRepo } from "./db/repositories/photosRepo";
+import {
+  supportStart,
+  supportText,
+  supportAdminReplyStart,
+  supportAdminText,
+} from "./bot/handlers/supportHandlers";
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
@@ -185,6 +191,10 @@ async function main() {
     await ctx.reply("Меню:", userMenu.main());
   });
 
+  bot.hears("🆘 Написати адміну", async (ctx) => {
+    await supportStart(ctx);
+  });
+
   // 6) INLINE ACTIONS (анкета)
   bot.action("profile:start", async (ctx) => {
     await ctx.answerCbQuery();
@@ -263,6 +273,61 @@ async function main() {
     await adminRequestEdit(ctx, userId);
   });
 
+  bot.action(
+  /^admin:fix:(\d+):(name|status|city|location|age|about|tags|photos|cancel)$/,
+  requireAdmin as any,
+  async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const userId = Number((ctx.match as RegExpMatchArray)[1]);
+    const field = (ctx.match as RegExpMatchArray)[2];
+
+    if (field === "cancel") {
+      await ctx.reply("Ок, скасовано.");
+      return;
+    }
+
+    const labelMap: Record<string, string> = {
+      name: "Ім’я",
+      status: "Статус (у відносинах/без)",
+      city: "Місто",
+      location: "Місце (район/село)",
+      age: "Вік",
+      about: "Опис",
+      tags: "Інтереси",
+      photos: "Фото",
+    };
+
+    await ctx.telegram.sendMessage(
+      userId,
+      "✏️ Потрібні правки в анкеті\n\n" +
+        `Пункт: ${labelMap[field]}\n\n` +
+        "Натисни кнопку нижче та виправ лише цей пункт.\n" +
+        "Після цього відправ анкету на модерацію ще раз ✅",
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: "Виправити зараз", callback_data: `user:editfield:${field}` }]],
+        },
+      }
+    );
+
+    await ctx.reply(`Користувачу відправлено: ${labelMap[field]}`);
+  }
+);
+
+bot.action(
+  /^user:editfield:(name|status|city|location|age|about|tags|photos)$/,
+  async (ctx) => {
+    await ctx.answerCbQuery();
+    const field = (ctx.match as RegExpMatchArray)[1];
+
+    // если пользователь уже был в сцене — выходим
+    try { await ctx.scene.leave(); } catch {}
+
+    await ctx.scene.enter("PROFILE_WIZARD", { mode: "edit_one", field });
+  }
+);
+
   // 8) Контакты
   bot.action(/^contact:request:(\d+)$/, async (ctx) => {
     await ctx.answerCbQuery();
@@ -294,9 +359,17 @@ async function main() {
     await ctx.answerCbQuery();
     await feedbackStart(ctx);
   });
+  // 11) Саппорт
+  bot.action(/^support:reply:(\d+)$/, requireAdmin as any, async (ctx) => {
+    await ctx.answerCbQuery();
+    const targetUserId = Number((ctx.match as RegExpMatchArray)[1]);
+    await supportAdminReplyStart(ctx, targetUserId);
+  });
 
   // 11) Draft тексты (контакт/жалоба/фидбек/админ-правки)
   bot.on("text", async (ctx) => {
+    await supportAdminText(ctx);
+    await supportText(ctx);
     await contactDraftText(ctx);
     await reportDraftText(ctx);
     await feedbackText(ctx);
