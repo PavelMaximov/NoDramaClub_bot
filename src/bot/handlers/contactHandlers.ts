@@ -109,15 +109,15 @@ export async function contactRequestStart(ctx: BotContext, targetUserId: number)
   const deliveredToTarget = await safeDm(
     ctx,
     targetUserId,
-    "Новый запрос на контакт 💌\n\n" +
-      `От: ${fromIdentity.label}${metaLine}\n\n` +
-      "Принять?",
+    "Новий запит на контакт 💌\n\n" +
+      `Від: ${fromIdentity.label}${metaLine}\n\n` +
+      "Прийняти?",
     {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "✅ Принять", callback_data: `contact:accept:${requestId}` },
-            { text: "❌ Отклонить", callback_data: `contact:decline:${requestId}` },
+            { text: "✅ Прийняти", callback_data: `contact:accept:${requestId}` },
+            { text: "❌ Відхилити", callback_data: `contact:decline:${requestId}` },
           ],
         ],
       },

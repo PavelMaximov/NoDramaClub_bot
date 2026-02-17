@@ -9,7 +9,7 @@ export async function showMyProfile(ctx: BotContext) {
 
   const profile = profilesRepo.get(userId);
   if (!profile || profile.state === "inactive" || profile.state === "draft") {
-    await ctx.reply("Анкеты пока нет. Нажми «Заполнить анкету».", userKeyboards.main());
+    await ctx.reply("Анкети поки немає. Натисни «Заповнити анкету».", userKeyboards.main());
     return;
   }
 
@@ -26,18 +26,18 @@ export async function showMyProfile(ctx: BotContext) {
 }
 
 function formatProfilePreview(profile: any) {
-  const genderLabel = profile.gender === "male" ? "Парень" : "Девушка";
-  const relLabel = profile.relationship_status === "in_relation" ? "В отношениях" : "Без отношений";
+  const genderLabel = profile.gender === "male" ? "Хлопець" : "Дівчина";
+  const relLabel = profile.relationship_status === "in_relation" ? "У відносинах" : "Без стосунків";
   const tags = safeParseTags(profile.tags);
 
   return (
     `Моя анкета\n` +
     `Пол: ${genderLabel}\n` +
     `Статус: ${relLabel}\n` +
-    `Город: ${profile.city ?? "-"}\n` +
-    `Возраст: ${profile.age ?? "-"}\n` +
-    `Интересы: ${tags.length ? tags.join(", ") : "-"}\n\n` +
-    `О себе:\n${profile.about ?? "-"}`
+    `Місто: ${profile.city ?? "-"}\n` +
+    `Вік: ${profile.age ?? "-"}\n` +
+    `Інтереси: ${tags.length ? tags.join(", ") : "-"}\n\n` +
+    `Про себе/Що шукаю:\n${profile.about ?? "-"}`
   );
 }
 

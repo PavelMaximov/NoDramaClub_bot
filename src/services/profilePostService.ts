@@ -38,8 +38,8 @@ export const profilePostService = {
       message_thread_id: threadId,
       reply_markup: {
         inline_keyboard: [
-          [{ text: "💌 Запросить контакт", callback_data: `contact:request:${userId}` }],
-          [{ text: "🚩 Пожаловаться", callback_data: `report:${userId}` }],
+          [{ text: "💌 Запитати контакт", callback_data: `contact:request:${userId}` }],
+          [{ text: "🚩 Поскаржитися", callback_data: `report:${userId}` }],
         ],
       },
     });
@@ -68,8 +68,8 @@ function mapGenderToTopicKey(gender: Gender) {
 }
 
 function formatProfileForGroup(profile: any) {
-  const genderLabel = profile.gender === "male" ? "Парень" : "Девушка";
-  const relLabel = profile.relationship_status === "in_relation" ? "В отношениях" : "Без отношений";
+  const genderLabel = profile.gender === "male" ? "Хлопець" : "Дівчина";
+  const relLabel = profile.relationship_status === "in_relation" ? "У відносинах" : "Без стосунків";
 
   const tags = safeParseTags(profile.tags);
   const tagsLine = tags.length ? tags.join(", ") : "-";
@@ -77,13 +77,13 @@ function formatProfileForGroup(profile: any) {
 
   return (
     `Анкета\n` +
-  `Имя: ${profile.display_name ?? "-"}\n` +
-  `Возраст: ${profile.age ?? "-"}\n` +
+  `Ім'я: ${profile.display_name ?? "-"}\n` +
+  `Вік: ${profile.age ?? "-"}\n` +
   `Статус: ${relLabel}\n` +
-  (profile.city_main ? `Город: ${cityTag}\n` : "") +
-  `Место: ${profile.location_detail ?? profile.city_main }\n` +
-  `Интересы: ${tagsLine}\n\n` +
-  `О себе:\n${profile.about ?? "-"}`
+  (profile.city_main ? `Місто: ${cityTag}\n` : "") +
+  `Місце: ${profile.location_detail ?? profile.city_main }\n` +
+  `Інтереси: ${tagsLine}\n\n` +
+  `Про себе:\n${profile.about ?? "-"}`
   );
 }
 

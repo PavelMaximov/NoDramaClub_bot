@@ -43,7 +43,7 @@ async function showPreview(ctx: BotContext) {
   const profile = profilesRepo.get(userId);
   const photos = photosRepo.list(userId);
 
-  await ctx.reply("Проверим анкету перед отправкой:");
+  await ctx.reply("Перевіримо анкету перед відправкою:");
 
   if (photos.length) {
     await ctx.replyWithMediaGroup(
@@ -86,8 +86,8 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       photosRepo.clear(userId);
       ctx.wizard.selectStep(9);
       await ctx.reply(
-        "Перезагрузка фото.\nОтправь 2–3 фото (по одному сообщению).\n" +
-          "Когда загрузишь минимум 2 — нажми «Готово».",
+        "Перезавантаження фото.\nНадішли 2–3 фото.\n" +
+          "Коли завантажиш мінімум 2 — натисни «Готово».",
         userKeyboards.photosControls(),
       );
       return;
@@ -117,7 +117,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     // Обычный сценарий
     await ctx.reply(
-      "Выбери свой пол (это определит ветку в чате):",
+      "Вибери свою стать (це визначить гілку в чаті):",
       userKeyboards.gender(),
     );
     return ctx.wizard.next();
@@ -132,7 +132,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     // mini-fallback
     if (!data || !data.startsWith("profile:gender:")) {
-      await ctx.reply("Выбери пол кнопкой ниже:", userKeyboards.gender());
+      await ctx.reply("Вибери стать кнопкою нижче:", userKeyboards.gender());
       return;
     }
 
@@ -149,7 +149,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return;
     }
 
-    await ctx.reply("Теперь выбери статус:", userKeyboards.relationship());
+    await ctx.reply("Тепер вибери статус:", userKeyboards.relationship());
     return ctx.wizard.next();
   },
 
@@ -161,7 +161,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     const data = (ctx.callbackQuery as any)?.data as string | undefined;
 
     if (!data || !data.startsWith("profile:rel:")) {
-      await ctx.reply("Выбери статус кнопкой ниже:", userKeyboards.relationship());
+      await ctx.reply("Вибери статус кнопкою нижче:", userKeyboards.relationship());
       return;
     }
 
@@ -178,7 +178,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return;
     }
 
-    await ctx.reply("Укажи своё имя (2–20 символов):");
+    await ctx.reply("Укажи своє ім'я (2–20 символів):");
     return ctx.wizard.next();
   },
 
@@ -190,13 +190,13 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     const text = (ctx.message as any)?.text as string | undefined;
 
     if (!text) {
-      await ctx.reply("Напиши имя текстом (2–20 символов).");
+      await ctx.reply("Напиши ім'я текстом (2–20 символів).");
       return;
     }
 
     const name = text.trim();
     if (name.length < 2 || name.length > 20) {
-      await ctx.reply("Имя должно быть 2–20 символов. Попробуй ещё раз.");
+      await ctx.reply("Ім'я має бути 2–20 символів. Спробуй ще раз.");
       return;
     }
 
@@ -207,7 +207,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return;
     }
 
-    await ctx.reply("Выбери основной город:", userKeyboards.cityMain());
+    await ctx.reply("Вибери основне місто:", userKeyboards.cityMain());
     return ctx.wizard.next();
   },
 
@@ -219,7 +219,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     const data = (ctx.callbackQuery as any)?.data as string | undefined;
 
     if (!data || !data.startsWith("profile:city:")) {
-      await ctx.reply("Выбери город кнопкой ниже:", userKeyboards.cityMain());
+      await ctx.reply("Вибери місто кнопкою нижче:", userKeyboards.cityMain());
       return;
     }
 
@@ -229,7 +229,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     profilesRepo.patch(userId, { city_main: city });
 
     await ctx.reply(
-      "Уточни место проживания (район/посёлок/село рядом) или нажми «Пропустить».",
+      "Вкажи місце проживання (район/селище/село поруч) або натисни «Пропустити».",
       userKeyboards.skipLocationDetail(),
     );
     return ctx.wizard.next();
@@ -247,7 +247,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       if (cbData !== "profile:locdetail:skip") {
         await ctx.answerCbQuery();
         await ctx.reply(
-          "Нажми «Пропустить» или напиши место текстом.",
+          "Натисни «Пропустити» або напиши місце текстом.",
           userKeyboards.skipLocationDetail(),
         );
         return;
@@ -263,7 +263,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
         return;
       }
 
-      await ctx.reply("Ок, пропустили. Сколько тебе лет? (числом 18–99)");
+      await ctx.reply("Ок, пропустили. Скільки тобі років? (числом 18–99)");
       return ctx.wizard.next();
     }
 
@@ -271,7 +271,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
 
     if (!text) {
       await ctx.reply(
-        "Напиши место текстом или нажми «Пропустить».",
+        "Напиши місце текстом або натисни «Пропустити».",
         userKeyboards.skipLocationDetail(),
       );
       return;
@@ -280,7 +280,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     const detail = text.trim();
     if (detail.length < 2) {
       await ctx.reply(
-        "Слишком коротко. Напиши минимум 2 символа или нажми «Пропустить».",
+        "Занадто коротко. Напиши мінімум 2 символи або натисни «Пропустити».",
         userKeyboards.skipLocationDetail(),
       );
       return;
@@ -294,7 +294,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return;
     }
 
-    await ctx.reply("Сколько тебе лет? (числом 18–99)");
+    await ctx.reply("Скільки тобі років? (числом 18–99)");
     return ctx.wizard.next();
   },
 
@@ -306,13 +306,13 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     const text = (ctx.message as any)?.text as string | undefined;
 
     if (!text) {
-      await ctx.reply("Введи возраст числом (18–99).");
+      await ctx.reply("Введи вік числом (18–99).");
       return;
     }
 
     const age = Number(text);
     if (!Number.isInteger(age) || age < 18 || age > 99) {
-      await ctx.reply("Возраст должен быть числом от 18 до 99. Попробуй ещё раз.");
+      await ctx.reply("Вік має бути числом від 18 до 99. Спробуй ще раз.");
       return;
     }
 
@@ -323,7 +323,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return;
     }
 
-    await ctx.reply("Напиши о себе или что ты ищешь (минимум 20 символов):");
+    await ctx.reply("Напиши про себе або що ти шукаєш (мінімум 20 символів):");
     return ctx.wizard.next();
   },
 
@@ -335,13 +335,13 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
     const text = (ctx.message as any)?.text as string | undefined;
 
     if (!text) {
-      await ctx.reply("Напиши о себе текстом (минимум 20 символов).");
+      await ctx.reply("Напиши про себе текстом (мінімум 20 символів).");
       return;
     }
 
     const about = text.trim();
     if (about.length < 20) {
-      await ctx.reply("Нужно минимум 20 символов. Попробуй ещё раз.");
+      await ctx.reply("Потрібно мінімум 20 символів. Спробуй ще раз.");
       return;
     }
 
@@ -352,7 +352,7 @@ export const profileWizard = new Scenes.WizardScene<BotContext>(
       return;
     }
 
-    await ctx.reply("Интересы (через запятую, до 5):");
+    await ctx.reply("Інтереси (через кому, до 5):");
     return ctx.wizard.next();
   },
 
@@ -364,7 +364,7 @@ async (ctx) => {
 
   const text = (ctx.message as any)?.text as string | undefined;
   if (!text) {
-    await ctx.reply("Напиши интересы текстом (через запятую, до 5).");
+    await ctx.reply("Напиши інтереси текстом (через кому, до 5).");
     return;
   }
 
@@ -384,7 +384,7 @@ async (ctx) => {
     const profile = profilesRepo.get(userId);
     const photos = photosRepo.list(userId);
 
-    await ctx.reply("Фото сохраняем. Проверим анкету перед отправкой:");
+    await ctx.reply("Фото збережено. Перевіримо анкету перед відправкою:");
 
     if (photos.length) {
       await ctx.replyWithMediaGroup(
@@ -397,11 +397,10 @@ async (ctx) => {
     return;
   }
 
-  // ✅ ВАЖНО: тут должна быть клавиатура!
   await ctx.reply(
-    "Теперь отправь 2–3 фото.\n" +
-      "Обязательно фото на которых видно тебя.\n" +
-      "Когда загрузишь минимум 2 — нажми «Готово».",
+    "Тепер надішли 2–3 фото.\n" +
+      "Обов'язково фото, на яких видно тебе.\n" +
+      "Коли завантажиш мінімум 2 — натисни «Готово».",
     userKeyboards.photosControls()
   );
 
@@ -422,7 +421,7 @@ async (ctx) => {
   if (cbData === "profile:photos:clear") {
     photosRepo.clear(userId);
     await ctx.reply(
-      "Фото удалены 🗑\nОтправь 2–3 фото заново.",
+      "Фото видалено 🗑\nНадішли 2–3 фото заново.",
       userKeyboards.photosControls()
     );
     return;
@@ -434,7 +433,7 @@ async (ctx) => {
 
     if (count < 2) {
       await ctx.reply(
-        `Пока загружено ${count}. Нужно минимум 2 фото.`,
+        `Поки завантажено ${count}. Потрібно мінімум 2 фото.`,
         userKeyboards.photosControls()
       );
       return;
@@ -443,7 +442,7 @@ async (ctx) => {
     const profile = profilesRepo.get(userId);
     const photos = photosRepo.list(userId);
 
-    await ctx.reply("Проверим анкету перед отправкой:");
+    await ctx.reply("Перевіримо анкету перед відправкою:");
 
     if (photos.length) {
       await ctx.replyWithMediaGroup(
@@ -463,12 +462,12 @@ async (ctx) => {
     const count = photosRepo.count(userId);
 
     if (count >= 3) {
-      await ctx.reply("Загружено 3 фото — достаточно ✅");
+      await ctx.reply("Завантажено 3 фото — достатньо ✅");
 
       const profile = profilesRepo.get(userId);
       const photos = photosRepo.list(userId);
 
-      await ctx.reply("Проверим анкету перед отправкой:");
+      await ctx.reply("Перевіримо анкету перед відправкою:");
 
       if (photos.length) {
         await ctx.replyWithMediaGroup(
@@ -481,7 +480,7 @@ async (ctx) => {
     }
 
     await ctx.reply(
-      `Фото добавлено ✅ (${count}/3). Можно добавить ещё или нажать «Готово» (мин. 2).`,
+      `Фото додано ✅ (${count}/3). Можна додати ще або натиснути «Готово» (мін. 2).`,
       userKeyboards.photosControls()
     );
     return;
@@ -489,7 +488,7 @@ async (ctx) => {
 
   // 4) Всё остальное — мини-fallback
   await ctx.reply(
-    "Пришли фото сообщением или нажми «Готово», когда будет минимум 2.",
+    "Надішли фото повідомленням або натисни «Готово», коли буде мінімум 2.",
     userKeyboards.photosControls()
   );
 },
@@ -514,7 +513,7 @@ async (ctx) => {
 
       profilesRepo.patch(userId, { state: "pending" });
 
-      await ctx.reply("Заявка отправлена на модерацию ✅");
+      await ctx.reply("Заявка відправлена на модерацію ✅");
 
       await moderationService.notifyAdminsNewProfile(ctx.telegram, userId);
 
@@ -522,7 +521,7 @@ async (ctx) => {
     } catch (e) {
       console.error("SUBMIT ERROR:", e);
       await ctx.reply(
-        "Не получилось отправить на модерацию из-за ошибки. Попробуй ещё раз через минуту."
+        "Не вдалося надіслати на модерацію через помилку. Спробуй ще раз через хвилину.."
       );
       return;
     }
@@ -535,7 +534,7 @@ async (ctx) => {
 
   // мини-fallback + чтобы не было "кнопки нет"
   await ctx.reply(
-    "Нажми кнопку «Отправить на модерацию».",
+    "Натисни кнопку «Надіслати на модерацію».",
     userKeyboards.submit()
   );
 },
@@ -544,19 +543,19 @@ async (ctx) => {
 function formatProfilePreview(profile: any) {
   const relLabel =
     profile?.relationship_status === "in_relation"
-      ? "В отношениях"
-      : "Без отношений";
+      ? "У відносинах"
+      : "Без стосунків";
 
   const tags = safeParseTags(profile?.tags);
 
   return (
-    `Имя: ${profile?.display_name ?? "-"}\n` +
+    `Ім'я: ${profile?.display_name ?? "-"}\n` +
     `Статус: ${relLabel}\n` +
-    `Город: ${profile?.city_main ?? "-"}\n` +
-    `Место: ${profile?.location_detail ?? "-"}\n` +
-    `Возраст: ${profile?.age ?? "-"}\n` +
-    `Интересы: ${tags.length ? tags.join(", ") : "-"}\n\n` +
-    `О себе:\n${profile?.about ?? "-"}`
+    `Місто: ${profile?.city_main ?? "-"}\n` +
+    `Місце: ${profile?.location_detail ?? "-"}\n` +
+    `Вік: ${profile?.age ?? "-"}\n` +
+    `Інтереси: ${tags.length ? tags.join(", ") : "-"}\n\n` +
+    `Про себе:\n${profile?.about ?? "-"}`
   );
 }
 

@@ -110,5 +110,5 @@ export async function reportDraftText(ctx: BotContext) {
   );
 
   getSession(ctx).reportDraft = undefined;
-  await ctx.reply("Жалоба отправлена ✅ Спасибо. Мы разберёмся.");
+  await ctx.reply("Скарга надіслана ✅ Дякуємо. Ми розберемося.");
 }

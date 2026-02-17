@@ -35,11 +35,11 @@ export async function handleAdminEditText(ctx: BotContext) {
   // отправляем пользователю конкретные правки
   await ctx.telegram.sendMessage(
     draft.targetUserId,
-    "Нужны правки по анкете 📝\n\n" +
-      "Что исправить:\n" +
+    "Потрібні правки по анкеті 📝\n\n" +
+      "Що виправити:\n" +
       feedback +
       "\n\n" +
-      "Выбери «✏️ Изменить анкету», затем отправь на модерацию снова."
+      "Вибери «✏️ Змінити анкету», потім надішли на модерацію знову."
   );
 
   getSession(ctx).adminEditDraft = undefined;

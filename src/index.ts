@@ -35,6 +35,16 @@ import { profileDeleteService } from "./services/profileDeleteService";
 import { profilesRepo } from "./db/repositories/profilesRepo";
 import { photosRepo } from "./db/repositories/photosRepo";
 
+import express from 'express';
+const app = express()
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok' })
+})
+
+const PORT = Number(process.env.PORT) || 3000
+app.listen(PORT, () => console.log('HTTP server up', PORT))
+
 function requiredEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env: ${name}`);
@@ -120,8 +130,8 @@ async function main() {
     }
 
     await ctx.reply(
-      "Привет! Здесь анкеты и знакомства в безопасном формате.\n" +
-        "Заполни анкету, дождись модерации и общайся через запросы.",
+      "Привіт! Тут можна знайти знайомства за допомогою анкет.\n" +
+        "Заповни анкету, дочекайся модерації та спілкуйся через запити.",
       userMenu.main(),
     );
   });
@@ -134,7 +144,7 @@ async function main() {
   bot.command("topics", requireAdmin as any, listTopicsHandler);
 
   // 5) HEARS (кнопки меню)
-  bot.hears("✅ Заполнить анкету", async (ctx) => {
+  bot.hears("✅ Заповнити анкету", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -143,7 +153,7 @@ async function main() {
 
     if (profile && profile.state !== "inactive" && photoCount >= 2) {
       await ctx.reply(
-        `У тебя уже есть анкета (${photoCount} фото).\nЧто хочешь сделать?`,
+        `У тебе вже є анкета (${photoCount} фото).\nЩо хочеш зробити?`,
         userKeyboards.editOrNew(),
       );
       return;
@@ -154,30 +164,30 @@ async function main() {
 
   bot.hears("🧾 Моя анкета", async (ctx) => showMyProfile(ctx));
 
-  bot.hears("✏️ Изменить анкету", async (ctx) => {
+  bot.hears("✏️ Змінити анкету", async (ctx) => {
     await ctx.scene.enter("PROFILE_WIZARD", { mode: "edit" });
   });
 
-  bot.hears("🗑 Удалить анкету", async (ctx) => {
+  bot.hears("🗑 Видалити анкету", async (ctx) => {
     await ctx.reply(
-      "Точно удалить анкету? Посты в топике тоже будут удалены.",
+      "Точно видалити анкету? Пости в топіку також будуть видалені.",
       userKeyboards.deleteConfirm(),
     );
   });
 
   bot.hears("🔎 Поиск", async (ctx) => {
     
-    await ctx.reply("Выбери город для поиска:", userKeyboards.cityMain());
+    await ctx.reply("Вибери місто для пошуку:", userKeyboards.cityMain());
   });
 
   bot.hears("📜 Правила", async (ctx) => {
     await ctx.reply(
       "Правила:\n" +
-        "1) Без рекламы и ссылок\n" +
-        "2) Без оскорблений\n" +
-        "3) Контакт только через запросы\n" +
+        "1) Без реклами та посилань\n" +
+        "2) Без образливих висловлювань\n" +
+        "3) Контакт лише через запити\n" +
         "4) Фейки/скам — бан\n\n" +
-        "Нарушения можно репортить кнопкой 🚩 под анкетой.",
+        "Порушення можна повідомити за допомогою кнопки 🚩 під анкетою..",
     );
     await ctx.reply("Меню:", userMenu.main());
   });
@@ -194,7 +204,7 @@ async function main() {
 
     if (profile && profile.state !== "inactive" && photoCount >= 2) {
       await ctx.reply(
-        `У тебя уже есть анкета (${photoCount} фото).\nЧто хочешь сделать?`,
+        `У тебе вже є анкета (${photoCount} фото).\nЩо хочеш зробити?`,
         userKeyboards.editOrNew(),
       );
       return;
@@ -221,14 +231,14 @@ async function main() {
   bot.action("profile:delete", async (ctx) => {
     await ctx.answerCbQuery();
     await ctx.reply(
-      "Точно удалить анкету? Посты в топике тоже будут удалены.",
+      "Точно видалити анкету? Пости в топіку також будуть видалені.",
       userKeyboards.deleteConfirm(),
     );
   });
 
   bot.action("profile:delete:no", async (ctx) => {
     await ctx.answerCbQuery();
-    await ctx.reply("Ок, не удаляю.", userMenu.main());
+    await ctx.reply("Ок, не видаляю.", userMenu.main());
   });
 
   bot.action("profile:delete:yes", async (ctx) => {
@@ -238,7 +248,7 @@ async function main() {
     if (!userId) return;
 
     await profileDeleteService.deleteProfileAndPosts(ctx.telegram, userId);
-    await ctx.reply("Анкета удалена ✅", userMenu.main());
+    await ctx.reply("Анкета видалена ✅", userMenu.main());
   });
 
   // 7) INLINE ACTIONS (админ-модерация)

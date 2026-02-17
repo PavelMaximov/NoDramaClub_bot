@@ -12,7 +12,7 @@ export const moderationService = {
       : null;
     const firstName = (chat as any).first_name ?? "";
     const lastName = (chat as any).last_name ?? "";
-    const fullName = `${firstName} ${lastName}`.trim() || "Без имени";
+    const fullName = `${firstName} ${lastName}`.trim() || "Без імені";
     const who = username ?? fullName;
 
     if (!profile) throw new Error("PROFILE_NOT_FOUND");
@@ -34,10 +34,10 @@ export const moderationService = {
 
     const keyboard = {
       inline_keyboard: [
-        [{ text: "👤 Открыть профиль", url: `tg://user?id=${userId}` }],
+        [{ text: "👤 Відкрити профіль", url: `tg://user?id=${userId}` }],
         [
-          { text: "✅ Approve", callback_data: `admin:approve:${userId}` },
-          { text: "❌ Reject", callback_data: `admin:reject:${userId}` },
+          { text: "✅ Прийняти", callback_data: `admin:approve:${userId}` },
+          { text: "❌ Відхилити", callback_data: `admin:reject:${userId}` },
         ],
         [{ text: "📝 Request edit", callback_data: `admin:edit:${userId}` }],
       ],
@@ -53,21 +53,21 @@ export const moderationService = {
 
 function formatProfileForAdmin(profile: any) {
   const genderLabel =
-    profile.gender === "male" ? "Парень (Herren)" : "Девушка (Frauen)";
+    profile.gender === "male" ? "Хлопець (Herren)" : "Дівчина (Frauen)";
   const relLabel =
     profile.relationship_status === "in_relation"
-      ? "В отношениях"
-      : "Без отношений";
+      ? "У відносинах"
+      : "Без стосунків";
 
   return (
-    `Новая анкета на модерации\n` +
-    `От: ${profile.who}\n` +
+    `Нова анкета на модерації\n` +
+    `Від: ${profile.who}\n` +
     `user_id: ${profile.user_id}\n` +
     `Пол: ${genderLabel}\n` +
     `Статус: ${relLabel}\n` +
-    `Город: ${profile.city ?? "-"}\n` +
-    `Возраст: ${profile.age ?? "-"}\n` +
-    `Интересы: ${profile.tags ?? "-"}\n\n` +
-    `О себе:\n${profile.about ?? "-"}`
+    `Місто: ${profile.city ?? "-"}\n` +
+    `Вік: ${profile.age ?? "-"}\n` +
+    `Інтереси: ${profile.tags ?? "-"}\n\n` +
+    `Про себе:\n${profile.about ?? "-"}`
   );
 }

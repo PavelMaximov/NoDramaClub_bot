@@ -85,52 +85,52 @@ const GERMANY_CITIES = [
 export const userKeyboards = {
   main() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback("✅ Заполнить анкету", "profile:start")],
+      [Markup.button.callback("✅ Заповнити анкету", "profile:start")],
       [Markup.button.callback("🧾 Моя анкета", "profile:me")],
-      [Markup.button.callback("🗑 Удалить анкету", "profile:delete")],
+      [Markup.button.callback("🗑 Видалити анкету", "profile:delete")],
     ]);
   },
 
   editOrDelete() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback("✏️ Заполнить анкету заново", "profile:start")],
-      [Markup.button.callback("🗑 Удалить анкету", "profile:delete")],
+      [Markup.button.callback("✏️ Заповнити анкету заново", "profile:start")],
+      [Markup.button.callback("🗑 Видалити анкету", "profile:delete")],
     ]);
   },
 
   gender() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback("Парень", "profile:gender:male")],
-      [Markup.button.callback("Девушка", "profile:gender:female")],
+      [Markup.button.callback("Хлопець", "profile:gender:male")],
+      [Markup.button.callback("Дівчина", "profile:gender:female")],
     ]);
   },
 
   relationship() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback("В отношениях", "profile:rel:in_relation")],
-      [Markup.button.callback("Без отношений", "profile:rel:single")],
+      [Markup.button.callback("У відносинах", "profile:rel:in_relation")],
+      [Markup.button.callback("Без стосунків", "profile:rel:single")],
     ]);
   },
 
   submit() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback("✅ Отправить на модерацию", "profile:submit")],
-      [Markup.button.callback("✏️ Изменить", "profile:start")],
+      [Markup.button.callback("✅ Відправити на модерацію", "profile:submit")],
+      [Markup.button.callback("✏️ Змінити", "profile:start")],
     ]);
   },
 
   previewActions() {
     return Markup.inlineKeyboard([
-      [{ text: "✅ Отправить на модерацию", callback_data: "profile:submit" }],
-      [{ text: "✏️ Изменить анкету", callback_data: "profile:editmenu" }],
+      [{ text: "✅ Відправити на модерацію", callback_data: "profile:submit" }],
+      [{ text: "✏️ Змінити анкету", callback_data: "profile:editmenu" }],
     ]);
   },
 
   deleteConfirm() {
     return Markup.inlineKeyboard([
       [
-        Markup.button.callback("🗑 Да, удалить", "profile:delete:yes"),
-        Markup.button.callback("Отмена", "profile:delete:no"),
+        Markup.button.callback("🗑 Так, видалити", "profile:delete:yes"),
+        Markup.button.callback("Відмінити", "profile:delete:no"),
       ],
     ]);
   },
@@ -139,17 +139,17 @@ export const userKeyboards = {
     return Markup.inlineKeyboard([
       [
         Markup.button.callback(
-          "✏️ Редактировать (фото сохранятся)",
+          "✏️ Редагувати (фото збережуться)",
           "profile:edit",
         ),
       ],
       [
         Markup.button.callback(
-          "🆕 Заполнить заново (фото заново)",
+          "🆕 Заповнити заново (фото заново)",
           "profile:new",
         ),
       ],
-      [Markup.button.callback("Отмена", "profile:cancel")],
+      [Markup.button.callback("Відмінити", "profile:cancel")],
     ]);
   },
 
@@ -171,13 +171,13 @@ export const userKeyboards = {
           : []),
       ]);
     }
-    rows.push([Markup.button.callback("Пропустить", "profile:city:skip")]);
+    rows.push([Markup.button.callback("Пропустити", "profile:city:skip")]);
     return Markup.inlineKeyboard(rows);
   },
 
   skipLocationDetail() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback("⏭ Пропустить", "profile:locdetail:skip")],
+      [Markup.button.callback("⏭ Пропустити", "profile:locdetail:skip")],
     ]);
   },
 
@@ -190,20 +190,20 @@ export const userKeyboards = {
   photosControls() {
     return Markup.inlineKeyboard([
       [Markup.button.callback("✅ Готово", "profile:photos:done")],
-      [Markup.button.callback("🗑 Удалить все фото", "profile:photos:clear")],
+      [Markup.button.callback("🗑 Видалити всі фото", "profile:photos:clear")],
     ]);
   },
 
    editProfileMenu() {
     return Markup.inlineKeyboard([
-      [{ text: "Имя", callback_data: "profile:editfield:name" }],
+      [{ text: "Ім'я", callback_data: "profile:editfield:name" }],
       [{ text: "Статус", callback_data: "profile:editfield:status" }],
-      [{ text: "Город", callback_data: "profile:editfield:city" }],
-      [{ text: "Место (район/посёлок)", callback_data: "profile:editfield:location" }],
-      [{ text: "Возраст", callback_data: "profile:editfield:age" }],
-      [{ text: "Описание", callback_data: "profile:editfield:about" }],
-      [{ text: "Фото (перезагрузить)", callback_data: "profile:editfield:photos" }],
-      [{ text: "Отмена", callback_data: "profile:editfield:cancel" }],
+      [{ text: "Місто", callback_data: "profile:editfield:city" }],
+      [{ text: "Місце (район/селище)", callback_data: "profile:editfield:location" }],
+      [{ text: "Вік", callback_data: "profile:editfield:age" }],
+      [{ text: "Опис", callback_data: "profile:editfield:about" }],
+      [{ text: "Фото (перезагрузити)", callback_data: "profile:editfield:photos" }],
+      [{ text: "Відмінити", callback_data: "profile:editfield:cancel" }],
     ]);
   },
 };

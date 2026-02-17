@@ -3,7 +3,7 @@ import { userMenu } from "../keyboards/userMenu";
 import { getSession } from "../sessionHelpers";
 
 export async function showMainMenu(ctx: BotContext) {
-  await ctx.reply("Выбери действие:", userMenu.main());
+  await ctx.reply("Вибери дію:", userMenu.main());
 }
 
 export async function cancelAll(ctx: BotContext) {
@@ -14,5 +14,5 @@ export async function cancelAll(ctx: BotContext) {
     if (ctx.scene?.current) await ctx.scene.leave();
   } catch {}
 
-  await ctx.reply("Ок, отменил.", userMenu.main());
+  await ctx.reply("Ок, відмінив.", userMenu.main());
 }

@@ -6,7 +6,7 @@ export function formatTgUser(u: User) {
 
   return {
     username,
-    fullName: fullName || "Без имени",
+    fullName: fullName || "Без імені",
     label: username ?? (fullName || `id:${u.id}`),
     id: u.id,
   };
