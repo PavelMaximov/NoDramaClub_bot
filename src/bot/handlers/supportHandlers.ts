@@ -1,6 +1,7 @@
 import type { BotContext } from "../context";
 import { config } from "../../config";
 import { getSession } from "../sessionHelpers";
+import { userMenu } from "../keyboards/userMenu";
 
 // антиспам в памяти (на рестарт обнуляется — для MVP норм)
 const lastSupportAt = new Map<number, number>();
@@ -35,12 +36,17 @@ export async function supportStart(ctx: BotContext) {
 
   getSession(ctx).supportDraft = { active: true };
 
-  await ctx.reply(
-    "Опиши свою проблему одним повідомленням.\n" +
-      "Наприклад: на якому кроці анкети зависло і що ти натискав.\n\n" +
-      "Увага: беззмістовний спам — бан.\n" +
-      "Скасувати: /cancel"
-  );
+  try {
+    await ctx.reply(
+      "Опиши свою проблему одним повідомленням.\n" +
+        "Наприклад: на якому кроці анкети зависло і що ти натискав.\n\n" +
+        "Увага: беззмістовний спам — бан.\n" +
+        "Скасувати: /cancel"
+    );
+    await ctx.reply("Меню:", userMenu.main());
+  } catch (e) {
+    console.error("SUPPORT_START_REPLY_ERROR:", e);
+  }
 }
 
 /**
@@ -59,10 +65,10 @@ export async function supportText(ctx: BotContext) {
   const trimmed = text.trim();
 
   if (trimmed === "/cancel") {
-    getSession(ctx).supportDraft = undefined;
-    await ctx.reply("Ок, скасовано ✅");
-    return;
-  }
+  getSession(ctx).supportDraft = undefined;
+  await ctx.reply("Ок, скасовано ✅", userMenu.main());
+  return;
+}
 
   if (trimmed.length < 5) {
     await ctx.reply("Занадто коротко. Напиши детальніше або /cancel");
@@ -105,6 +111,7 @@ export async function supportText(ctx: BotContext) {
   );
 
   await ctx.reply("Дякую! Повідомлення відправлено адміну ✅");
+  await ctx.reply("Меню:", userMenu.main());
 }
 
 /**

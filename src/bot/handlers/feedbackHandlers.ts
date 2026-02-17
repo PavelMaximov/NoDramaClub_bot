@@ -2,6 +2,7 @@ import type { BotContext } from "../context";
 import { feedbacksRepo } from "../../db/repositories/feedbacksRepo";
 import { config } from "../../config";
 import { getSession } from "../sessionHelpers";
+import { userMenu } from "../keyboards/userMenu";
 
 const COOLDOWN_HOURS = 2; 
 
@@ -29,6 +30,7 @@ export async function feedbackStart(ctx: BotContext) {
       "Важливо: безглуздий спам → бан.\n" +
       "Скасування: /cancel"
   );
+  
 }
 
 export async function feedbackText(ctx: BotContext) {
@@ -71,4 +73,5 @@ const who = u.username ? `@${u.username}` : [u.first_name, u.last_name].filter(B
 
   getSession(ctx).feedbackDraft = undefined;
   await ctx.reply("Відправлено ✅ Дякуємо. Якщо потрібно — ми уточнимо.");
+  await ctx.reply("Меню:", userMenu.main());
 }
