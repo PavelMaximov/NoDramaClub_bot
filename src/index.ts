@@ -14,7 +14,10 @@ import { userMenu } from "./bot/keyboards/userMenu";
 import { showMainMenu, cancelAll } from "./bot/handlers/menuHandlers";
 import { showMyProfile } from "./bot/handlers/profileHandlers";
 
-import { bindTopicHandler, listTopicsHandler } from "./bot/handlers/adminHandlers";
+import {
+  bindTopicHandler,
+  listTopicsHandler,
+} from "./bot/handlers/adminHandlers";
 import {
   adminApprove,
   adminReject,
@@ -34,16 +37,6 @@ import { feedbackStart, feedbackText } from "./bot/handlers/feedbackHandlers";
 import { profileDeleteService } from "./services/profileDeleteService";
 import { profilesRepo } from "./db/repositories/profilesRepo";
 import { photosRepo } from "./db/repositories/photosRepo";
-
-import express from 'express';
-const app = express()
-
-app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok' })
-})
-
-const PORT = Number(process.env.PORT) || 3000
-app.listen(PORT, () => console.log('HTTP server up', PORT))
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
@@ -68,7 +61,7 @@ async function main() {
     console.error("BOT ERROR:", err);
   });
 
-  // Debug лог апдейтов 
+  // Debug лог апдейтов
   bot.use(async (ctx, next) => {
     console.log("UPDATE:", ctx.updateType, {
       text: (ctx.message as any)?.text,
@@ -93,7 +86,8 @@ async function main() {
     const msg: any = ctx.message;
 
     const isService =
-      (Array.isArray(msg?.new_chat_members) && msg.new_chat_members.length > 0) ||
+      (Array.isArray(msg?.new_chat_members) &&
+        msg.new_chat_members.length > 0) ||
       !!msg?.left_chat_member ||
       !!msg?.new_chat_title ||
       !!msg?.new_chat_photo ||
@@ -176,7 +170,6 @@ async function main() {
   });
 
   bot.hears("🔎 Поиск", async (ctx) => {
-    
     await ctx.reply("Вибери місто для пошуку:", userKeyboards.cityMain());
   });
 
@@ -307,8 +300,6 @@ async function main() {
     await contactDraftText(ctx);
     await reportDraftText(ctx);
     await feedbackText(ctx);
-    
-    
   });
 
   // =========================
@@ -316,16 +307,19 @@ async function main() {
   // =========================
 
   const port = Number(process.env.PORT || 8000);
-  const webhookDomain = requiredEnv("WEBHOOK_DOMAIN"); 
-  const webhookPath = requiredEnv("WEBHOOK_PATH");     
-  const webhookSecret = process.env.WEBHOOK_SECRET;    
+  const webhookDomain = requiredEnv("WEBHOOK_DOMAIN");
+  const webhookPath = requiredEnv("WEBHOOK_PATH");
+  const webhookSecret = process.env.WEBHOOK_SECRET;
 
   const server = http.createServer((req, res) => {
     try {
       // healthcheck
-      if (req.method === "GET" && req.url === "/health") {
+      if (
+        req.url === "/health" &&
+        (req.method === "GET" || req.method === "HEAD")
+      ) {
         res.writeHead(200, { "Content-Type": "text/plain" });
-        res.end("ok");
+        res.end(req.method === "HEAD" ? undefined : "ok");
         return;
       }
 
